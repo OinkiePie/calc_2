@@ -119,6 +119,10 @@ func padRight(s string, padding int) string {
 
 // logf форматирует и печатает лог-сообщение с заданным уровнем.
 func (l *Logger) logf(level Level, format string, v ...interface{}) {
+	if format == "" {
+		return
+	}
+
 	l.mu.Lock()         // Блокируем для обеспечения потокобезопасности
 	defer l.mu.Unlock() // Не забываем разблокировать после завершения
 

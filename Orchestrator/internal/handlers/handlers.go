@@ -2,13 +2,14 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
 
+	"github.com/OinkiePie/calc_2/config"
 	"github.com/OinkiePie/calc_2/orchestrator/internal/models"
 	"github.com/OinkiePie/calc_2/orchestrator/internal/task_manager"
+	"github.com/OinkiePie/calc_2/pkg/logger"
 	"github.com/gorilla/mux"
 )
 
@@ -18,7 +19,7 @@ type Handlers struct {
 }
 
 // NewHandlers - конструктор для структуры Handlers
-func NewHandlers(tm *task_manager.TaskManager) *Handlers {
+func NewOrchestratorHandlers(tm *task_manager.TaskManager) *Handlers {
 	return &Handlers{taskManager: tm}
 }
 
@@ -96,7 +97,8 @@ func (h *Handlers) AddExpressionHandler(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated) // 201
 	json.NewEncoder(w).Encode(response)
-	fmt.Println("AddExpressionHandler completed successfully")
+
+	logger.Log.Debugf("AddExpressionHandler: выражение %s успешно создано", id)
 }
 
 // GetExpressionsHandler обрабатывает GET-запросы на эндпоинт /api/v1/expressions.
@@ -153,7 +155,7 @@ func (h *Handlers) GetExpressionsHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	fmt.Println("GetExpressionsHandler completed successfully")
+	logger.Log.Debugf("GetExpressionsHandler: список выражений успешно отправлен")
 }
 
 // GetExpressionHandler обрабатывает GET-запросы на эндпоинт /api/v1/expressions/{id}.
@@ -216,7 +218,7 @@ func (h *Handlers) GetExpressionHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	fmt.Println("GetExpressionHandler completed successfully")
+	logger.Log.Debugf("GetExpressionHandler: выражение %s успешно добавлено", id)
 }
 
 // GetTaskHandler обрабатывает GET-запросы на эндпоинт /internal/task.
@@ -244,7 +246,7 @@ func (h *Handlers) GetExpressionHandler(w http.ResponseWriter, r *http.Request) 
 //	404 Not Found:
 //	(пустой ответ) - Если нет доступных задач для выполнения
 func (h *Handlers) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
-	task, expressionID, ok := h.taskManager.GetTask()
+	task, _, ok := h.taskManager.GetTask()
 	if !ok {
 		w.WriteHeader(http.StatusNotFound) // 404
 		return
@@ -262,7 +264,8 @@ func (h *Handlers) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
-	fmt.Printf("GetTaskHandler completed successfully, expressionID = %s, taskID = %s\n", expressionID, task.ID)
+
+	logger.Log.Debugf("GetTaskHandler: задача %s успешно отправлена", task.ID)
 
 }
 
@@ -324,7 +327,7 @@ func (h *Handlers) GetTaskIDHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("GetTasksHandler completed successfully")
+	logger.Log.Debugf("GetTasksHandler: задача %s успешно отправлена", id)
 }
 
 // CompleteTaskHandler обрабатывает POST-запросы на эндпоинт /internal/task.
@@ -381,19 +384,30 @@ func (h *Handlers) CompleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK) // 200
-	fmt.Printf("CompleteTaskHandler completed successfully, taskID = %s, result = %f\n", requestBody.ID, requestBody.Result)
+
+	logger.Log.Debugf("CompleteTaskHandler: задача %s успешно выполнена", requestBody.ID)
 }
 
-// EnableCORS - добавляет заголовки CORS для разрешения запросов с других доменов
+// EnableCORS - добавляет заголовки CORS  для разрешения запросов с других доменов.
 func EnableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			// Проверяем, есть ли origin в списке разрешенных
+			allowed := false
+			for _, allowedOrigin := range config.Cfg.CORS.AllowOrigin {
+				if strings.EqualFold(origin, allowedOrigin) { //Сравнение без учета регистра
+					allowed = true
+					break
+				}
+			}
+			if allowed {
+				// Если origin разрешен, устанавливаем заголовок Access-Control-Allow-Origin
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				// Дополнительные заголовки CORS
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
+				w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Authorization")
+			}
 		}
 
 		next.ServeHTTP(w, r)

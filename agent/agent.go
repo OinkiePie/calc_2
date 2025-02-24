@@ -3,16 +3,23 @@ package agent
 import (
 	"fmt"
 	"net/http"
-
-	"github.com/OinkiePie/calc_2/pkg/logger"
 )
 
-// StartAgentServer запускает сервер агента
-func StartAgentServer(port int) (*http.Server, error) {
-	addr := fmt.Sprintf(":%d", port)
+// StartAgentServer запускает HTTP-сервер агента.
+//
+// Args:
+//
+//	errChan: chan error - Канал для отправки ошибок, возникающих при работе сервера.
+//	port: int - Порт, на котором будет запущен сервер агента.
+//
+// Returns:
+//
+//	*http.Server: Указатель на структуру http.Server, представляющую запущенный сервер агента.
+//	              В случае ошибки при запуске сервера, в канал errChan будет отправлена ошибка.
+func StartAgentServer(errChan chan error, port int) *http.Server {
+	addr := fmt.Sprintf("localhost:%d", port)
 
-	logger.Log.Infof("Запуск сервера агента на %s", addr)
-
+	// Создаем экземпляр структуры http.Server, указывая адрес и обработчик
 	srv := &http.Server{
 		Addr: addr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -20,8 +27,15 @@ func StartAgentServer(port int) (*http.Server, error) {
 		}),
 	}
 
-	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-		return nil, fmt.Errorf("ошибка при запуске сервера агента: %w", err)
-	}
-	return srv, nil
+	// Запускаем сервер в отдельной горутине, чтобы не блокировать основной поток выполнения.
+	go func() {
+		// Запускаем прослушивание входящих соединений на указанном адресе.
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			// Если при запуске сервера произошла ошибка, отправляем её в канал ошибок.
+			errChan <- err
+		}
+	}()
+
+	// Возвращаем указатель на созданный и запущенный сервер.
+	return srv
 }

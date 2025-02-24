@@ -1,26 +1,33 @@
-package orchestrator
+package web
 
 import (
 	"fmt"
 	"net/http"
+	"os"
 
-	"github.com/OinkiePie/calc_2/orchestrator/internal/router"
+	"github.com/OinkiePie/calc_2/web/internal/router"
 )
 
-// StartOrchestratorServer запускает HTTP-сервер оркестратора.
+// StartWebServer запускает HTTP-сервер для обслуживания статических файлов веб-приложения.
 //
 // Args:
 //
 //	errChan: chan error - Канал для отправки ошибок, возникающих при работе сервера.
-//	port: int - Порт, на котором будет запущен сервер оркестратора.
+//	port: int - Порт, на котором будет запущен веб-сервер.
+//	staticDir: string - Путь к директории, содержащей статические файлы (HTML, CSS, JavaScript, favicon).
 //
 // Returns:
 //
 //	*http.Server: Указатель на структуру http.Server, представляющую запущенный сервер агента.
 //	              В случае ошибки при запуске сервера, в канал errChan будет отправлена ошибка.
-func StartOrchestratorServer(errChan chan error, port int) *http.Server {
+func StartWebServer(errChan chan error, port int, staticDir string) *http.Server {
+	if _, err := os.Stat(staticDir); os.IsNotExist(err) {
+		fmt.Println(staticDir)
+		errChan <- fmt.Errorf("директория со статическими файлами не найдена")
+	}
+
 	addr := fmt.Sprintf("localhost:%d", port)
-	router := router.NewOrchestratorRouter()
+	router := router.NewWebRouter(staticDir)
 
 	// Создаем экземпляр структуры http.Server, указывая адрес и обработчик
 	srv := &http.Server{

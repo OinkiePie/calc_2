@@ -1,5 +1,0 @@
-[Orchestrator]
-Port = 8080
-
-[Agent]
-Port = 8081

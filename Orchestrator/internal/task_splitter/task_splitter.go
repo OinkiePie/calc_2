@@ -6,7 +6,9 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/OinkiePie/calc_2/config"
 	"github.com/OinkiePie/calc_2/orchestrator/internal/models"
+	"github.com/OinkiePie/calc_2/pkg/logger"
 	"github.com/OinkiePie/calc_2/pkg/operators"
 	"github.com/google/uuid"
 )
@@ -22,6 +24,17 @@ var (
 	ErrRPN        = errors.New("error during converting to RPN")
 )
 
+// ParseExpression разбирает математическое выражение, представленное в виде строки, и преобразует его в набор задач для выполнения.
+//
+// Args:
+//
+//	id: string - Уникальный идентификатор для связывания задач с выражением.
+//	expression: string - Математическое выражение, которое необходимо разобрать.
+//
+// Returns:
+//
+//	[]models.Task - Срез задач, представляющих операции, необходимые для вычисления выражения.
+//	error - Ошибка, если выражение не может быть разобрано или содержит неверные элементы.
 func ParseExpression(id, expression string) ([]models.Task, error) {
 	// expression = strings.TrimSpace(expression) не требуется
 	// т.к. была передана уже обрезанная строка
@@ -45,7 +58,17 @@ func ParseExpression(id, expression string) ([]models.Task, error) {
 	return tasks, nil
 }
 
-// precedence определяет приоретет задачи для правильной вложености при разбитии на задачи
+// precedence определяет приоритет оператора для правильной вложенности при разбиении на задачи.
+// Более высокий приоритет означает, что оператор должен быть выполнен раньше.
+//
+// Args:
+//
+//	op: string - Строка, представляющая оператор (+, -, *, /, ^, u-).
+//
+// Returns:
+//
+//	int - Целое число, представляющее приоритет оператора. Чем больше число, тем выше приоритет.
+//	     Возвращает 0 для неопознанных операторов.
 func precedence(op string) int {
 	switch op {
 	case operators.OpAdd, operators.OpSubtract:
@@ -61,7 +84,15 @@ func precedence(op string) int {
 	}
 }
 
-// isOperator проверяет, является ли токен оператором
+// isOperator проверяет, является ли токен строкой, представляющей математический оператор.
+//
+// Args:
+//
+//	token: string - Строка, которую необходимо проверить.
+//
+// Returns:
+//
+//	bool - true, если токен является одним из допустимых операторов (+, -, *, /, ^, u-), иначе false.
 func isOperator(token string) bool {
 	switch token {
 	case operators.OpAdd, operators.OpSubtract, operators.OpMultiply, operators.OpDivide, operators.OpPower:
@@ -71,7 +102,16 @@ func isOperator(token string) bool {
 	}
 }
 
-// isUnaryMinus определяет, нужно ли обрабатывать минус как унарный
+// isUnaryMinus определяет, следует ли обрабатывать знак минус как унарный (например, "-5") или бинарный (например, "3 - 5").
+//
+// Args:
+//
+//	tokens: []string - Срез строк, представляющий токены выражения.
+//	i: int - Индекс текущего токена в срезе.
+//
+// Returns:
+//
+//	bool - true, если минус должен быть обработан как унарный, иначе false.
 func isUnaryMinus(tokens []string, i int) bool {
 	if i == 0 {
 		return true // Минус в начале выражения - унарный
@@ -80,7 +120,17 @@ func isUnaryMinus(tokens []string, i int) bool {
 	return prevToken == operators.ParenLeft || isOperator(prevToken)
 }
 
-// infixToRPN преобразует инфиксное выражение в обратную польскую нотацию (RPN)
+// infixToRPN преобразует математическое выражение в инфиксной нотации (обычная запись) в обратную польскую нотацию (RPN).
+// RPN упрощает вычисление выражений с помощью стека.
+//
+// Args:
+//
+//	expression: string - Математическое выражение в инфиксной нотации.
+//
+// Returns:
+//
+//	[]string - Срез строк, представляющий выражение в обратной польской нотации (RPN).
+//	error - Ошибка, если выражение не может быть преобразовано.
 func infixToRPN(expression string) ([]string, error) {
 
 	tokens := tokenize(expression) // Сначала разбиваем на токены
@@ -135,7 +185,16 @@ func infixToRPN(expression string) ([]string, error) {
 	return output, nil
 }
 
-// tokenize разбивает входную строку на токены (числа, операторы, скобки)
+// tokenize разбивает входную строку математического выражения на отдельные токены (числа, операторы, скобки).
+// Токены используются для дальнейшей обработки выражения.
+//
+// Args:
+//
+//	expression: string - Строка, содержащая математическое выражение.
+//
+// Returns:
+//
+//	[]string - Срез строк, представляющий токены выражения.
 func tokenize(expression string) []string {
 	var tokens []string
 	var currentNumber string
@@ -161,13 +220,58 @@ func tokenize(expression string) []string {
 	return tokens
 }
 
-// isNumber проверяет, является ли токен числом
+// isNumber проверяет, является ли переданный токен числом.
+//
+// Args:
+//
+//	token: string - Строка, которую необходимо проверить.
+//
+// Returns:
+//
+//	bool - true, если токен может быть преобразован в число, иначе false.
 func isNumber(token string) bool {
 	_, err := strconv.ParseFloat(token, 64)
 	return err == nil
 }
 
-// Преобразоваем польскую нотацию в задачи учитывая зависимости
+// opTime возвращает время операции
+//
+// Args:
+//
+//	operator: string - математический оператор.
+//
+// Returns:
+//
+//	int - длительность операции в миллисекундах, если значение отсутствует - 0.
+func opTime(operator string) int {
+	// Время не вынесено в отдельную переменную т.к. при этом конфиг не успевает инициализироваться
+	duration, ok := map[string]int{
+		operators.OpAdd:      config.Cfg.Math.TIME_ADDITION_MS,
+		operators.OpSubtract: config.Cfg.Math.TIME_SUBTRACTION_MS,
+		operators.OpMultiply: config.Cfg.Math.TIME_MULTIPLICATION_MS,
+		operators.OpDivide:   config.Cfg.Math.TIME_DIVISION_MS,
+		operators.OpPower:    config.Cfg.Math.TIME_POWER_MS,
+	}[operator]
+
+	if !ok {
+		logger.Log.Warnf("opTime: оператор %s не найден", operator)
+		return 0
+	}
+	return duration
+}
+
+// rpnToTasks преобразует выражение, представленное в обратной польской нотации (RPN), в набор задач (models.Task) с учетом зависимостей между ними.
+// Каждая задача представляет собой операцию, которую необходимо выполнить для вычисления части выражения.
+//
+// Args:
+//
+//	expression: string - Исходное математическое выражение.
+//	rpn: []string - Срез строк, представляющий выражение в обратной польской нотации (RPN).
+//
+// Returns:
+//
+//	[]models.Task - Срез задач, представляющих операции для вычисления выражения, с установленными зависимостями.
+//	error: Ошибка, если RPN выражение не может быть преобразовано в задачи или содержит неверные элементы.
 func rpnToTasks(expression string, rpn []string) ([]models.Task, error) {
 	var tasks []models.Task
 	var stack []string // Стек для чисел и ID задач
@@ -189,7 +293,7 @@ func rpnToTasks(expression string, rpn []string) ([]models.Task, error) {
 				ID:             id,
 				Args:           make([]*float64, 2),
 				Operation:      token,
-				Operation_time: 1,
+				Operation_time: opTime(token),
 				Status:         "pending",
 				Expression:     expression,
 				Dependencies:   make([]string, 2),
@@ -225,7 +329,7 @@ func rpnToTasks(expression string, rpn []string) ([]models.Task, error) {
 			task := models.Task{
 				ID:             id,
 				Operation:      operators.OpUnaryMinus,
-				Operation_time: 1,
+				Operation_time: config.Cfg.Math.TIME_UNARY_MINUS_MS,
 				Status:         "pending",
 				Expression:     expression,
 			}

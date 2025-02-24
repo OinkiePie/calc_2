@@ -1,27 +1,47 @@
 package models
 
-// Expression - структура для части арифметического выражения
+// Task представляет структуру для части арифметического выражения, которую нужно вычислить.
 type Task struct {
-	ID             string
-	Args           []*float64
-	Operation      string
+	// ID - Уникальный идентификатор задачи.
+	ID string
+	// Args - Срез указателей на аргументы задачи. Может быть nil, если аргумент является зависит от другой задачи.
+	Args []*float64
+	// Operation - Операция, которую необходимо выполнить (+, -, *, /, ^, -u).
+	Operation string
+	// Operation_time - Время, необходимое для выполнения операции.
 	Operation_time int
-	Dependencies   []string // ID задачи, результат которой нужен (если есть зависимость)
-	Status         string   // "pending", "processing", "completed"
-	Result         *float64 // Указатель на результат (мб nil)
-	Expression     string
+	// Dependencies - Список ID задач, результаты которых необходимы для выполнения данной задачи.
+	Dependencies []string
+	// Status - Статус задачи ("pending", "processing", "completed").
+	Status string
+	// Result - Указатель на результат выполнения задачи. Может быть nil, если задача ещё не выполнена.
+	Result *float64
+	// Expression - ID выражения, к которому принадлежит данная задача.
+	Expression string
 }
 
+// TaskResponse представляет структуру для отправки информации о задаче в HTTP-ответе.
 type TaskResponse struct {
-	ID             string     `json:"id"`
-	Args           []*float64 `json:"args"`
-	Operation      string     `json:"operation"`
-	Operation_time int        `json:"operation_time"`
-	Expression     string     `json:"expression"`
+	// ID - Уникальный идентификатор задачи.
+	ID string `json:"id"`
+	// Args - Срез указателей на аргументы задачи.
+	Args []*float64 `json:"args"`
+	// Operation - Операция, которую необходимо выполнить.
+	Operation string `json:"operation"`
+	// Operation_time - Время, необходимое для выполнения операции.
+	Operation_time int `json:"operation_time"`
+	// Expression - ID выражения, к которому принадлежит данная задача.
+	// Используется для опитмизации возвращения резульата агентом.
+	Expression string `json:"expression"`
 }
 
+// TaskCompleted представляет структуру для получения информации о завершенной задаче из HTTP-запроса.
+// Используется для декодирования вырожения из тела запроса.
 type TaskCompleted struct {
-	Expression string  `json:"expression"` // ID корневого выражения
-	ID         string  `json:"id"`         //ID таска
-	Result     float64 `json:"result"`     //Результат вычислений
+	// Expression - ID корневого выражения, к которому принадлежит задача.
+	Expression string `json:"expression"`
+	// ID - Уникальный идентификатор задачи.
+	ID string `json:"id"`
+	// Result - Результат вычисления задачи.
+	Result float64 `json:"result"`
 }

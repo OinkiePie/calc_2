@@ -1,7 +1,6 @@
 package task_manager
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/OinkiePie/calc_2/orchestrator/internal/models"
@@ -9,31 +8,54 @@ import (
 	"github.com/google/uuid"
 )
 
-// TaskManager - структура, управляющая списком выражений и задачами
+// TaskManager - структура, управляющая списком выражений и задачами.
 type TaskManager struct {
-	expressions   map[string]models.Expression
-	expressionsMu sync.RWMutex // Mutex для защиты map от конкурентного доступа
+	// expressions - Хранилище выражений, где ключ - ID выражения, значение - структура Expression.
+	expressions map[string]models.Expression
+	// expressionsMu - Mutex для защиты map от конкурентного доступа (чтения и записи).
+	expressionsMu sync.RWMutex
 }
 
-// NewTaskManager - конструктор для TaskManager
+// NewTaskManager - конструктор для TaskManager. Создает и возвращает новый экземпляр TaskManager.
+//
+// Args:
+//
+//	(None) - Функция не принимает аргументов.
+//
+// Returns:
+//
+//	*TaskManager - Указатель на новый экземпляр TaskManager.
 func NewTaskManager() *TaskManager {
+	// Инициализируем map для хранения выражений.
 	return &TaskManager{
 		expressions: make(map[string]models.Expression),
 	}
 }
 
-// AddExpression - добавляет новое выражение
+// AddExpression - добавляет новое выражение в TaskManager.
+//
+// Args:
+//
+//	expressionString: string - Строка, представляющая арифметическое выражение.
+//
+// Returns:
+//
+//	string - ID добавленного выражения.
+//	error - Ошибка, если не удалось добавить выражение.
 func (tm *TaskManager) AddExpression(expressionString string) (string, error) {
 	tm.expressionsMu.Lock()
 	defer tm.expressionsMu.Unlock()
 
+	// Генерируем уникальный ID для выражения.
 	id := uuid.New().String()
 
+	// Разбираем выражение на задачи с помощью task_splitter.ParseExpression.
 	tasks, err := task_splitter.ParseExpression(id, expressionString)
 	if err != nil {
 		return "", err
 	}
 
+	// Создаем структуру Expression.
 	expression := models.Expression{
 		ID:               id,
 		Status:           "pending",
@@ -42,19 +64,28 @@ func (tm *TaskManager) AddExpression(expressionString string) (string, error) {
 		ExpressionString: expressionString,
 	}
 
+	// Добавляем выражение в map выражений.
 	tm.expressions[id] = expression
-
-	fmt.Println("Added expression with ID:", id)
 
 	return id, nil
 }
 
-// GetExpressions - возвращает список всех выражений
+// GetExpressions - возвращает список всех выражений, хранящихся в TaskManager.
+//
+// Args:
+//
+//	(None): Функция не принимает аргументов.
+//
+// Returns:
+//
+//	[]models.Expression - Срез всех выражений, хранящихся в TaskManager.
 func (tm *TaskManager) GetExpressions() []models.Expression {
 	tm.expressionsMu.RLock()
 	defer tm.expressionsMu.RUnlock()
 
+	// Создаем срез для хранения выражений.
 	expressionsList := make([]models.Expression, 0, len(tm.expressions))
+	// Копируем все выражения из map в срез.
 	for _, expression := range tm.expressions {
 		expressionsList = append(expressionsList, expression)
 	}
@@ -62,41 +93,67 @@ func (tm *TaskManager) GetExpressions() []models.Expression {
 	return expressionsList
 }
 
-// GetExpression - возвращает выражение по ID
+// GetExpression - возвращает выражение из TaskManager по его ID.
+//
+// Args:
+//
+//	id: string - ID выражения, которое необходимо получить.
+//
+// Returns:
+//
+//	models.Expression: Выражение с указанным ID.
+//	bool: true, если выражение найдено, иначе false.
 func (tm *TaskManager) GetExpression(id string) (models.Expression, bool) {
 	tm.expressionsMu.Lock()
 	defer tm.expressionsMu.Unlock()
 
+	// Получаем выражение из map.
 	expression, ok := tm.expressions[id]
 
+	if !ok {
+		return models.Expression{}, ok
+	}
+
+	//Проверяем все ли задачи выполнены
 	for _, task := range expression.Tasks {
 		if task.Status != "completed" {
 			return expression, ok
 		}
 	}
-	// Удаляем из списка выражений выполненое
+	// Если все задачи выполнены удаляем выражение, из списка ожидающих
 	delete(tm.expressions, id)
 
+	//Меняем статус выражение на "completed"
 	expression.Status = "completed"
-	// Сплиттер разделяет задачи так что в конце будет находиться последня операция
+	// Сплиттер разделяет задачи так, что в конце будет находиться последня операция.
 	// Если задача имеет зависимости, она будет корневым элементом
 	expression.Result = expression.Tasks[len(expression.Tasks)-1].Result
 
 	return expression, ok
 }
 
-// GetTasks - возвращает список всех задачь
+// GetTasks - возвращает список всех задач для заданного выражения.
+//
+// Args:
+//
+//	id: string - ID выражения, для которого необходимо получить задачи.
+//
+// Returns:
+//
+//	[]models.Task - Срез всех задач для указанного выражения. Если выражение не найдено, возвращается пустой срез.
 func (tm *TaskManager) GetTasks(id string) []models.Task {
 	tm.expressionsMu.RLock()
 	defer tm.expressionsMu.RUnlock()
 
 	expression := models.Expression{}
+	// Ищем выражение по ID в map.
 	for exprID, expr := range tm.expressions {
 		if exprID == id {
 			expression = expr
 		}
 	}
 
+	// Если выражение не найдено, возвращаем пустой срез.
 	if expression.ID == "" {
 		return []models.Task{}
 	}
@@ -104,11 +161,21 @@ func (tm *TaskManager) GetTasks(id string) []models.Task {
 	return expression.Tasks
 }
 
-// GetTask - возвращает первую задачу со статусом "pending"
+// GetTask - возвращает первую задачу со статусом "pending".
+//
+// Args:
+//
+//	(None) - Функция не принимает аргументов.
+//
+// Returns:
+//
+//	models.Task - Первая задача со статусом "pending". Если таких задач нет, возвращается пустая задача.
+//	string - ID выражения, которому принадлежит найденная задача. Если задача не найдена, возвращается пустая строка.
+//	bool - true, если задача найдена, иначе false.
 func (tm *TaskManager) GetTask() (models.Task, string, bool) {
-	// Получаем блокировку для чтения, чтобы разрешить параллельное чтение выражений.
+	// Устанавливаем блокировку для чтения, чтобы разрешить параллельное чтение выражений.
 	tm.expressionsMu.RLock()
-	defer tm.expressionsMu.RUnlock() // Не забываем снять блокировку после завершения функции.
+	defer tm.expressionsMu.RUnlock()
 
 	// Объявляем переменные для хранения результатов и синхронизации.
 	var (
@@ -123,6 +190,7 @@ func (tm *TaskManager) GetTask() (models.Task, string, bool) {
 		}, len(tm.expressions)) // Буферизованный канал, размер которого равен количеству выражений. Это предотвращает блокировку горутин при отправке результатов.
 	)
 
+	// Итерируемся по всем выражениям.
 	for exprID, expr := range tm.expressions {
 		if expr.Status == "pending" || expr.Status == "processing" {
 			wg.Add(1)
@@ -130,6 +198,7 @@ func (tm *TaskManager) GetTask() (models.Task, string, bool) {
 			go func(exprID string, expr models.Expression) {
 				defer wg.Done()
 
+				// Итерируемся по задачам в выражении.
 				for i := range expr.Tasks {
 					// Получаем указатель на текущую задачу
 					task := &expr.Tasks[i]
@@ -151,8 +220,6 @@ func (tm *TaskManager) GetTask() (models.Task, string, bool) {
 							return // Завершаем горутину, так как задача найдена.
 						}
 
-						fmt.Println(tm.areDependenciesCompleted(expr.Tasks, task.Dependencies))
-
 						// Проверяем, выполнены ли все зависимости.
 						if tm.areDependenciesCompleted(expr.Tasks, task.Dependencies) {
 							// Все зависимости выполнены, задача готова к выполнению
@@ -167,12 +234,12 @@ func (tm *TaskManager) GetTask() (models.Task, string, bool) {
 								}
 							}
 
-							if entry, ok := tm.expressions[exprID]; ok { // Устанавливаем для задачи над таском которой работаем статус "processing"
+							// Устанавливаем для задачи над таском которой работаем статус "processing"
+							if entry, ok := tm.expressions[exprID]; ok {
 								entry.Status = "processing"
 								tm.expressions[exprID] = entry
 							}
-							task := *task // Обновляем задачу в выражении
-							fmt.Println(task)
+							task := *task        // Обновляем задачу в выражении
 							taskChan <- struct { // Отправляем результат в канал
 								task   models.Task
 								exprID string
@@ -186,7 +253,9 @@ func (tm *TaskManager) GetTask() (models.Task, string, bool) {
 		}
 	}
 
+	// Ожидаем завершения всех горутин.
 	wg.Wait()
+	// Закрываем канал, чтобы сообщить получателям, что больше не будет данных.
 	close(taskChan)
 
 	// Получаем результат из канала.
@@ -196,16 +265,24 @@ func (tm *TaskManager) GetTask() (models.Task, string, bool) {
 			foundTask = result.task
 			foundExprID = result.exprID
 			found = true
-			break // Важно: выходим из цикла, чтобы взять первый результат!
+			break // Прекращаем поиск после нахождения первой задачи.
 		}
 	}
 
-	// Возвращаем результаты.
+	// Возвращаем найденную задачу, ID выражения и флаг, указывающий, была ли задача найдена.
 	return foundTask, foundExprID, found
 }
 
 // areDependenciesCompleted проверяет, выполнены ли все зависимости задачи.
-// Возвращает: bool: true, если все зависимости выполнены, false в противном случае.
+//
+// Args:
+//
+//	tasks: []models.Task - Список задач в выражении.
+//	dependencies: []string - Список ID задач, от которых зависит текущая задача.
+//
+// Returns:
+//
+//	bool - true, если все зависимости выполнены, false в противном случае.
 func (tm *TaskManager) areDependenciesCompleted(tasks []models.Task, dependencies []string) bool {
 	for _, dependencyID := range dependencies {
 		if dependencyID == "" {
@@ -231,26 +308,40 @@ func (tm *TaskManager) areDependenciesCompleted(tasks []models.Task, dependencie
 	return true
 }
 
-// CompleteTask - обновляет статус и результат задачи
+// CompleteTask - обновляет статус и результат задачи.
+//
+// Args:
+//
+//	expressionID: string - ID выражения, которому принадлежит задача.
+//	taskID: string - ID задачи, которую необходимо завершить.
+//	result: float64 - Результат выполнения задачи.
+//
+// Returns:
+//
+//	bool - true, если задача успешно завершена и обновлена, false в противном случае.
 func (tm *TaskManager) CompleteTask(expressionID string, taskID string, result float64) bool {
 	tm.expressionsMu.Lock()
 	defer tm.expressionsMu.Unlock()
 
+	// Пытаемся получить выражение по ID.
 	expr, ok := tm.expressions[expressionID]
 	if !ok {
 		return false
 	}
 
+	// Итерируемся по задачам в выражении.
 	for i, task := range expr.Tasks {
+		// Ищем задачу с соответствующим ID.
 		if task.ID == taskID {
-			res := result
+			// Обновляем результат и статус задачи.
+			res := result // Создаем копию результата, чтобы взять указатель на неё.
 			expr.Tasks[i].Result = &res
 			expr.Tasks[i].Status = "completed"
-			tm.expressions[expressionID] = expr
-			fmt.Printf("Task %s completed for expression %s with result: %f\n", taskID, expressionID, result)
+			tm.expressions[expressionID] = expr // Обновляем выражение в map.
 			return true
 		}
 	}
 
+	//Если задача не найдена возвращаем false
 	return false
 }
