@@ -163,11 +163,6 @@ func (l *Logger) logf(level Level, format string, v ...interface{}) {
 	prefix := fmt.Sprintf("%s%s%s%s%s", colorCode, levelString, resetColor, timeString, fileInfo)
 	message := fmt.Sprintf(format, v...)  // Форматируем сообщение
 	l.log.Printf("%s%s", prefix, message) // Печатаем сообщение с префиксом
-
-	// Если уровень Fatal, завершаем программу
-	if level == FatalLevel {
-		os.Exit(1)
-	}
 }
 
 // Debugf логирует сообщение на уровне Debug.
@@ -193,6 +188,7 @@ func (l *Logger) Errorf(format string, v ...interface{}) {
 // Fatalf логирует сообщение на уровне Fatal и затем вызывает os.Exit(1).
 func (l *Logger) Fatalf(format string, v ...interface{}) {
 	l.logf(FatalLevel, format, v...)
+	os.Exit(1)
 }
 
 // SetTimeFormat устанавливает формат для временных меток.

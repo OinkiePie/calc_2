@@ -6,10 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/OinkiePie/calc_2/config"
-	"github.com/OinkiePie/calc_2/orchestrator/internal/models"
 	"github.com/OinkiePie/calc_2/orchestrator/internal/task_manager"
 	"github.com/OinkiePie/calc_2/pkg/logger"
+	"github.com/OinkiePie/calc_2/pkg/models"
 	"github.com/gorilla/mux"
 )
 
@@ -18,7 +17,16 @@ type Handlers struct {
 	taskManager *task_manager.TaskManager
 }
 
-// NewHandlers - конструктор для структуры Handlers
+// NewOrchestratorHandlers - конструктор для структуры Handlers.
+//
+// Args:
+//
+//	tm: *task_manager.TaskManager - Указатель на экземпляр TaskManager.
+//	    Необходимо передать уже инициализированный экземпляр TaskManager.
+//
+// Returns:
+//
+//	*Handlers - Указатель на новый экземпляр структуры Handlers.
 func NewOrchestratorHandlers(tm *task_manager.TaskManager) *Handlers {
 	return &Handlers{taskManager: tm}
 }
@@ -39,14 +47,14 @@ func NewOrchestratorHandlers(tm *task_manager.TaskManager) *Handlers {
 //	  "expression": "строка с математическим выражением"
 //	}
 //
-// Returns (JSON):
+// Responses:
 //
 //	201 Created:
 //	{
 //	  "id": "уникальный ID созданного выражения"
 //	}
 //
-//	400 Bad Request:
+//	42 Unprocessable Entity:
 //	{
 //	  "error": "Ошибка прочтение содержания запроса"
 //	}
@@ -55,19 +63,19 @@ func NewOrchestratorHandlers(tm *task_manager.TaskManager) *Handlers {
 //	  "error": "Ошибка при декодировании JSON"
 //	}
 //
-//	422 Unprocessable Entity:
 //	{
 //	  "error": "Выражения обязательно"
 //	}
 //
-//	500 Internal Server Error:
+// 500 Internal Server Error:
+//
 //	{
 //	  "error": "Ошибка при добавлении выражения в TaskManager"
 //	}
 func (h *Handlers) AddExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Failed to read body", http.StatusBadRequest) // 400
+		http.Error(w, "Failed to read body", http.StatusUnprocessableEntity) // 422
 		return
 	}
 
@@ -75,7 +83,7 @@ func (h *Handlers) AddExpressionHandler(w http.ResponseWriter, r *http.Request) 
 
 	err = json.Unmarshal(body, &requestBody)
 	if err != nil {
-		http.Error(w, "Failed to parse JSON", http.StatusBadRequest) // 400
+		http.Error(w, "Failed to parse JSON", http.StatusUnprocessableEntity) // 422
 		return
 	}
 
@@ -98,7 +106,7 @@ func (h *Handlers) AddExpressionHandler(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusCreated) // 201
 	json.NewEncoder(w).Encode(response)
 
-	logger.Log.Debugf("AddExpressionHandler: выражение %s успешно создано", id)
+	logger.Log.Debugf("Выражение %s успешно создано", id)
 }
 
 // GetExpressionsHandler обрабатывает GET-запросы на эндпоинт /api/v1/expressions.
@@ -111,7 +119,7 @@ func (h *Handlers) AddExpressionHandler(w http.ResponseWriter, r *http.Request) 
 //	w: http.ResponseWriter - интерфейс для записи HTTP-ответа.
 //	r: *http.Request - указатель на структуру, представляющую HTTP-запрос.
 //
-// Returns (JSON):
+// Responses:
 //
 //	200 OK:
 //	{
@@ -141,6 +149,7 @@ func (h *Handlers) GetExpressionsHandler(w http.ResponseWriter, r *http.Request)
 			ID:     expression.ID,
 			Status: expression.Status,
 			Result: expression.Result,
+			Error:  expression.Error,
 		}
 		expressionResponses = append(expressionResponses, expressionResponse)
 	}
@@ -155,7 +164,7 @@ func (h *Handlers) GetExpressionsHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	logger.Log.Debugf("GetExpressionsHandler: список выражений успешно отправлен")
+	logger.Log.Debugf("Список выражений успешно отправлен")
 }
 
 // GetExpressionHandler обрабатывает GET-запросы на эндпоинт /api/v1/expressions/{id}.
@@ -172,7 +181,7 @@ func (h *Handlers) GetExpressionsHandler(w http.ResponseWriter, r *http.Request)
 //
 //	id: ID выражения, которое нужно получить.
 //
-// Returns (JSON):
+// Responses:
 //
 //	200 OK:
 //	{
@@ -206,6 +215,7 @@ func (h *Handlers) GetExpressionHandler(w http.ResponseWriter, r *http.Request) 
 		ID:     expression.ID,
 		Status: expression.Status,
 		Result: expression.Result,
+		Error:  expression.Error,
 	}
 
 	response := map[string]models.ExpressionResponse{"expression": expressionResponse}
@@ -218,7 +228,7 @@ func (h *Handlers) GetExpressionHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	logger.Log.Debugf("GetExpressionHandler: выражение %s успешно добавлено", id)
+	logger.Log.Debugf("Выражение %s успешно добавлено", id)
 }
 
 // GetTaskHandler обрабатывает GET-запросы на эндпоинт /internal/task.
@@ -231,7 +241,7 @@ func (h *Handlers) GetExpressionHandler(w http.ResponseWriter, r *http.Request) 
 //	w: http.ResponseWriter - интерфейс для записи HTTP-ответа.
 //	r: *http.Request - указатель на структуру, представляющую HTTP-запрос.
 //
-// Returns (JSON):
+// Responses:
 //
 //	200 OK:
 //	{
@@ -252,21 +262,18 @@ func (h *Handlers) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := map[string]models.TaskResponse{
-		"task": {
-			ID:             task.ID,
-			Args:           task.Args,
-			Operation:      task.Operation,
-			Operation_time: task.Operation_time,
-			Expression:     task.Expression,
-		},
+	response := models.TaskResponse{
+		ID:             task.ID,
+		Args:           task.Args,
+		Operation:      task.Operation,
+		Operation_time: task.Operation_time,
+		Expression:     task.Expression,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 
-	logger.Log.Debugf("GetTaskHandler: задача %s успешно отправлена", task.ID)
-
+	logger.Log.Debugf("Задача %s успешно отправлена", task.ID)
 }
 
 // GetTaskIDHandler обрабатывает GET-запросы на эндпоинт /internal/task/{id}.
@@ -283,7 +290,7 @@ func (h *Handlers) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 //
 //	id: ID, с которым связаны задачи (например, ID выражения).
 //
-// Returns (JSON):
+// Responses:
 //
 //	200 OK:
 //	{
@@ -327,7 +334,7 @@ func (h *Handlers) GetTaskIDHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.Log.Debugf("GetTasksHandler: задача %s успешно отправлена", id)
+	logger.Log.Debugf("Задача %s успешно отправлена", id)
 }
 
 // CompleteTaskHandler обрабатывает POST-запросы на эндпоинт /internal/task.
@@ -348,10 +355,10 @@ func (h *Handlers) GetTaskIDHandler(w http.ResponseWriter, r *http.Request) {
 //		"result": "результат выполнения задачи (число)"
 //	}
 //
-// Returns:
+// Responses:
 //
 //	200 OK:
-//	- В случае успешного завершения. // пустой ответ
+//	(пустой ответ) - В случае успешного завершения.
 //
 //	400 Bad Request:
 //	{
@@ -377,7 +384,7 @@ func (h *Handlers) CompleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	success := h.taskManager.CompleteTask(requestBody.Expression, requestBody.ID, requestBody.Result)
+	success := h.taskManager.CompleteTask(requestBody.Expression, requestBody.ID, requestBody.Error, requestBody.Result)
 	if !success {
 		http.Error(w, "Task not found", http.StatusNotFound) // 404
 		return
@@ -385,31 +392,5 @@ func (h *Handlers) CompleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK) // 200
 
-	logger.Log.Debugf("CompleteTaskHandler: задача %s успешно выполнена", requestBody.ID)
-}
-
-// EnableCORS - добавляет заголовки CORS  для разрешения запросов с других доменов.
-func EnableCORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
-		if origin != "" {
-			// Проверяем, есть ли origin в списке разрешенных
-			allowed := false
-			for _, allowedOrigin := range config.Cfg.CORS.AllowOrigin {
-				if strings.EqualFold(origin, allowedOrigin) { //Сравнение без учета регистра
-					allowed = true
-					break
-				}
-			}
-			if allowed {
-				// Если origin разрешен, устанавливаем заголовок Access-Control-Allow-Origin
-				w.Header().Set("Access-Control-Allow-Origin", origin)
-				// Дополнительные заголовки CORS
-				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
-				w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Authorization")
-			}
-		}
-
-		next.ServeHTTP(w, r)
-	})
+	logger.Log.Debugf("Задача %s успешно выполнена", requestBody.ID)
 }

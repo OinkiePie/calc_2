@@ -1,24 +1,35 @@
 package orchestrator
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/OinkiePie/calc_2/config"
 	"github.com/OinkiePie/calc_2/orchestrator/internal/router"
+	"github.com/OinkiePie/calc_2/pkg/logger"
 )
 
-// StartOrchestratorServer запускает HTTP-сервер оркестратора.
+// Orchestrator представляет собой сервис оркестратора.
+type Orchestrator struct {
+	errChan chan error   // Канал для отправки ошибок, возникающих в сервисе.
+	server  *http.Server // Указатель на структуру http.Server, управляющую HTTP-сервером.
+	Addr    string       // Адрес, на котором прослушивает HTTP-сервер.
+}
+
+// NewOrchestrator создает новый экземпляр сервиса оркестратора.
 //
 // Args:
 //
-//	errChan: chan error - Канал для отправки ошибок, возникающих при работе сервера.
-//	port: int - Порт, на котором будет запущен сервер оркестратора.
+//	errChan: chan error - Канал для отправки ошибок, возникающих при инициализации или работе сервиса.
 //
 // Returns:
 //
-//	*http.Server: Указатель на структуру http.Server, представляющую запущенный сервер агента.
-//	              В случае ошибки при запуске сервера, в канал errChan будет отправлена ошибка.
-func StartOrchestratorServer(errChan chan error, port int) *http.Server {
+//	*Orchestrator - Указатель на новый экземпляр структуры Orchestrator.
+func NewOrchestrator(errChan chan error) *Orchestrator {
+	port := config.Cfg.Server.Orchestrator.Port
+
 	addr := fmt.Sprintf("localhost:%d", port)
 	router := router.NewOrchestratorRouter()
 
@@ -28,15 +39,29 @@ func StartOrchestratorServer(errChan chan error, port int) *http.Server {
 		Handler: router,
 	}
 
+	return &Orchestrator{errChan: errChan, server: srv, Addr: addr}
+}
+
+// Start запускает HTTP-сервер в отдельной горутине. Если во время запуска
+// возникает ошибка, она отправляется в канал ошибок.
+func (o *Orchestrator) Start() {
 	// Запускаем сервер в отдельной горутине, чтобы не блокировать основной поток выполнения.
 	go func() {
 		// Запускаем прослушивание входящих соединений на указанном адресе.
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+		if err := o.server.ListenAndServe(); err != http.ErrServerClosed {
 			// Если при запуске сервера произошла ошибка, отправляем её в канал ошибок.
-			errChan <- err
+			o.errChan <- err
 		}
 	}()
+}
 
-	// Возвращаем указатель на созданный и запущенный сервер.
-	return srv
+// Stop останавливает HTTP-сервер. Он использует контекст с таймаутом, чтобы
+// гарантировать, что остановка не займет слишком много времени.
+func (o *Orchestrator) Stop() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	err := o.server.Shutdown(ctx)
+	if err != nil {
+		logger.Log.Errorf("Ошибка при остановке сервиса Оркестратор")
+	}
 }

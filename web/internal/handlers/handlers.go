@@ -8,7 +8,7 @@ import (
 // Handlers представляет структуру, содержащую методы-обработчики для веб-запросов.
 // Хранит путь к директории со статическими файлами.
 type Handlers struct {
-	StaticDir string
+	staticDir string
 }
 
 // NewWebHandlers создает новый экземпляр структуры Handlers и инициализирует поле StaticDir.
@@ -21,7 +21,7 @@ type Handlers struct {
 //
 //	*Handlers - Указатель на созданный экземпляр структуры Handlers.
 func NewWebHandlers(static string) *Handlers {
-	return &Handlers{StaticDir: static}
+	return &Handlers{staticDir: static}
 }
 
 // IndexHandler обрабатывает запросы к корневому пути ("/") и возвращает файл index.html.
@@ -31,7 +31,7 @@ func NewWebHandlers(static string) *Handlers {
 //	w: http.ResponseWriter - интерфейс для записи HTTP-ответа.
 //	r: *http.Request - указатель на структуру, представляющую HTTP-запрос.
 func (h *Handlers) IndexHandler(w http.ResponseWriter, r *http.Request) {
-	indexFilePath := filepath.Join(h.StaticDir, "index.html") // Полный путь к index.html
+	indexFilePath := filepath.Join(h.staticDir, "index.html") // Полный путь к index.html
 	http.ServeFile(w, r, indexFilePath)
 }
 
@@ -42,7 +42,7 @@ func (h *Handlers) IndexHandler(w http.ResponseWriter, r *http.Request) {
 //	w: http.ResponseWriter - интерфейс для записи HTTP-ответа.
 //	r: *http.Request - указатель на структуру, представляющую HTTP-запрос.
 func (h *Handlers) ScriptHandler(w http.ResponseWriter, r *http.Request) {
-	indexFilePath := filepath.Join(h.StaticDir, "script.js") // Полный путь к script.js
+	indexFilePath := filepath.Join(h.staticDir, "script.js") // Полный путь к script.js
 	http.ServeFile(w, r, indexFilePath)
 }
 
@@ -53,7 +53,7 @@ func (h *Handlers) ScriptHandler(w http.ResponseWriter, r *http.Request) {
 //	w: http.ResponseWriter - интерфейс для записи HTTP-ответа.
 //	r: *http.Request - указатель на структуру, представляющую HTTP-запрос.
 func (h *Handlers) StyleHandler(w http.ResponseWriter, r *http.Request) {
-	indexFilePath := filepath.Join(h.StaticDir, "style.css") // Полный путь к style.css
+	indexFilePath := filepath.Join(h.staticDir, "style.css") // Полный путь к style.css
 	http.ServeFile(w, r, indexFilePath)
 }
 
@@ -64,6 +64,6 @@ func (h *Handlers) StyleHandler(w http.ResponseWriter, r *http.Request) {
 //	w: http.ResponseWriter - интерфейс для записи HTTP-ответа.
 //	r: *http.Request - указатель на структуру, представляющую HTTP-запрос.
 func (h *Handlers) FaviconHandler(w http.ResponseWriter, r *http.Request) {
-	indexFilePath := filepath.Join(h.StaticDir, "favicon.ico") // Полный путь к favicon.ico
+	indexFilePath := filepath.Join(h.staticDir, "favicon.ico") // Полный путь к favicon.ico
 	http.ServeFile(w, r, indexFilePath)
 }

@@ -15,6 +15,9 @@ calc_2/
 │   └── main.go                   // Точка входа приложения.
 │      
 ├── pkg/
+│   ├── models/
+│   │   ├── expression.go     // Структуры данных выражения.
+│   │   └── task.go           // Структуры данных задач.
 │   ├── logger/
 │   │   └── logger.go             // Логирует сообщения.
 │   └── operators/
@@ -46,9 +49,8 @@ calc_2/
     └── internal/
         ├── handlers/
         │   └── handlers.go       // Обрабатывает запросы Оркестратору
-        ├── models/
-        │   ├── expression.go     // Структуры данных выражения.
-        │   └── task.go           // Структуры данных задач.
+        ├── middlewares/
+        │   └── middlewares.go    // Обработчики запросов Окестратору
         ├── router/
         │   └── router.go         // Маршруты Окестратора
         ├── task_manager/
@@ -84,3 +86,38 @@ curl --location 'http://localhost:8082/api/v1/calculate' \
 --data '{
   "expression": "2+2*2"
 }'
+
+
+напиши мне код для агента. 
+он должен делать запросы без остановки на localgost:8080/internal/task, если была получения ошибка что задач для решения нет ждет секунду. 
+На вход он получает задачу
+type TaskResponse struct {
+	// ID - Уникальный идентификатор задачи.
+	ID string `json:"id"`
+	// Args - Срез указателей на аргументы задачи.
+	Args []*float64 `json:"args"`
+	// Operation - Операция, которую необходимо выполнить.
+	Operation string `json:"operation"`
+	// Operation_time - Время, необходимое для выполнения операции.
+	Operation_time int `json:"operation_time"`
+	// Expression - ID выражения, к которому принадлежит данная задача.
+	// Используется для опитмизации возвращения резульата агентом.
+	Expression string `json:"expression"`
+}
+в начале выполения он запускает контекст с таймаутом Operation_time , и продолжает выполнение полсе окончания решения задачи (если заняло больше времени чем Operation_time ) или конца Operation_time (если выполнено раньше)
+
+когда задача была решена отправляет её на localgost:8080/internal/task в формате
+type TaskCompleted struct {
+	// Expression - ID корневого выражения, к которому принадлежит задача.
+	Expression string `json:"expression"`
+	// ID - Уникальный идентификатор задачи.
+	ID string `json:"id"`
+	// Result - Результат вычисления задачи.
+	Result float64 `json:"result"`
+}.
+
+При старте демон запускает несколько горутин, каждая из которых выступает в роли независимого вычислителя. Количество горутин регулируется переменной конфига, можешь получить её по адресу config.Cfg.server.agent.COMPUTING_POWER.
+Сделай разбитие на файлы
+agent.go - запускает сервис
+internal - остальные процессы.
+можешь добавить папки по необходимости

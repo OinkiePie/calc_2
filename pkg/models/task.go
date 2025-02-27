@@ -33,6 +33,8 @@ type TaskResponse struct {
 	// Expression - ID выражения, к которому принадлежит данная задача.
 	// Используется для опитмизации возвращения резульата агентом.
 	Expression string `json:"expression"`
+	// Error - Указывает на невыполниасть задачи
+	Error string `json:"error"`
 }
 
 // TaskCompleted представляет структуру для получения информации о завершенной задаче из HTTP-запроса.
@@ -44,4 +46,6 @@ type TaskCompleted struct {
 	ID string `json:"id"`
 	// Result - Результат вычисления задачи.
 	Result float64 `json:"result"`
+	// Error - Указывает на невыполниасть задачи
+	Error string `json:"error"`
 }

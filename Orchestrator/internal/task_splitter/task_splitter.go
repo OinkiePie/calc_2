@@ -7,21 +7,20 @@ import (
 	"unicode"
 
 	"github.com/OinkiePie/calc_2/config"
-	"github.com/OinkiePie/calc_2/orchestrator/internal/models"
 	"github.com/OinkiePie/calc_2/pkg/logger"
+	"github.com/OinkiePie/calc_2/pkg/models"
 	"github.com/OinkiePie/calc_2/pkg/operators"
 	"github.com/google/uuid"
 )
 
 var (
-	ErrEmptyInput        = errors.New("empty input")
+	ErrOneOperand        = errors.New("at least two operars are required to calculate")
 	ErrUnopenedParen     = errors.New("unopened parenthesis")
 	ErrUnclosedParen     = errors.New("unclosed parenthesis")
 	ErrInvalidSyntax     = errors.New("invalid syntax")
 	ErrNotEnoughOperands = errors.New("not enough operands")
-	// ErrTooManyOperators  = errors.New("too many operators") - эквивалентно ErrNotEnoughOperands
-	ErrUnaryMinus = errors.New("not enough operands for the unary minus")
-	ErrRPN        = errors.New("error during converting to RPN")
+	ErrUnaryMinus        = errors.New("not enough operands for the unary minus")
+	ErrRPN               = errors.New("error during converting to RPN")
 )
 
 // ParseExpression разбирает математическое выражение, представленное в виде строки, и преобразует его в набор задач для выполнения.
@@ -48,7 +47,6 @@ func ParseExpression(id, expression string) ([]models.Task, error) {
 	}
 
 	var tasks []models.Task
-	// fmt.Println("RPN:", strings.Join(rpn, " "))
 	tasks, err = rpnToTasks(id, rpn)
 
 	if err != nil {
@@ -182,6 +180,10 @@ func infixToRPN(expression string) ([]string, error) {
 		stack = stack[:len(stack)-1]
 	}
 
+	if len(output) == 1 {
+		return nil, ErrOneOperand
+	}
+
 	return output, nil
 }
 
@@ -254,7 +256,7 @@ func opTime(operator string) int {
 	}[operator]
 
 	if !ok {
-		logger.Log.Warnf("opTime: оператор %s не найден", operator)
+		logger.Log.Warnf("Оператор %s не найден", operator)
 		return 0
 	}
 	return duration
@@ -318,7 +320,7 @@ func rpnToTasks(expression string, rpn []string) ([]models.Task, error) {
 			stack = append(stack, id) // Результат этой задачи будет использован далее
 		case operators.OpUnaryMinus:
 			// Унарный минус
-			// Если унарному минусу одиноко, он начинает грустить
+			// Если унарный минус не может быть один
 			if len(stack) < 1 {
 				return nil, ErrUnaryMinus
 			}
@@ -328,10 +330,12 @@ func rpnToTasks(expression string, rpn []string) ([]models.Task, error) {
 			id := uuid.New().String()
 			task := models.Task{
 				ID:             id,
+				Args:           make([]*float64, 2),
 				Operation:      operators.OpUnaryMinus,
 				Operation_time: config.Cfg.Math.TIME_UNARY_MINUS_MS,
 				Status:         "pending",
 				Expression:     expression,
+				Dependencies:   make([]string, 2),
 			}
 
 			if num, err := strconv.ParseFloat(operandStr, 64); err == nil {

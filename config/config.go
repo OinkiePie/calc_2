@@ -5,33 +5,40 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 
+	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
 )
 
 // Config представляет структуру конфигурации
 type Config struct {
-	Server ServersConfig `yaml:"server"`
-	Math   MathConfig    `yaml:"math"`
-	CORS   CORSConfig    `yaml:"cors"`
-	Logger LoggerConfig  `yaml:"logger"`
+	Server     ServicesConfig   `yaml:"server"`
+	Math       MathConfig       `yaml:"math"`
+	Middleware MiddlewareConfig `yaml:"middleware"`
+	Logger     LoggerConfig     `yaml:"logger"`
 }
 
-// Config представляет общую структуру серверов
-type ServersConfig struct {
-	Orchestrator ServerConfig    `yaml:"orchestrator"`
-	Agent        ServerConfig    `yaml:"agent"`
-	Web          WebServerConfig `yaml:"web"`
+// ServicesConfig представляет общую структуру сервисов
+type ServicesConfig struct {
+	Orchestrator OrchestratorServiceConfig `yaml:"orchestrator"`
+	Agent        AgentServiceConfig        `yaml:"agent"`
+	Web          WebServiceConfig          `yaml:"web"`
 }
 
-// ServerConfig представляет параметры серверов
-type ServerConfig struct {
-	Port int `toml:"port"`
+// OrchestratorServiceConfig структура параметров оркестратора
+type OrchestratorServiceConfig struct {
+	Port int `yaml:"port"`
 }
 
-type WebServerConfig struct {
-	ServerConfig
+// AgentServiceConfig структура параметров агента
+type AgentServiceConfig struct {
+	COMPUTING_POWER int `yaml:"COMPUTING_POWER"`
+}
+
+// WebServiceConfig структура параметров веб сервиса
+type WebServiceConfig struct {
 	Port      int    `yaml:"port"`
 	StaticDir string `yaml:"static"`
 }
@@ -47,8 +54,10 @@ type MathConfig struct {
 }
 
 // CORSConfig представляет параметры CORS
-type CORSConfig struct {
-	AllowOrigin []string `yaml:"allow_origin"`
+type MiddlewareConfig struct {
+	ApiKeyPrefix  string   `yaml:"api_key_prefix"`
+	Authorization string   `yaml:"authorization"`
+	AllowOrigin   []string `yaml:"cors_allow_origin"`
 }
 
 // LoggerConfig представляет параметры Логгера
@@ -64,14 +73,14 @@ type LoggerConfig struct {
 // DefaultConfig возвращает конфигурацию по умолчанию
 func DefaultConfig() *Config {
 	return &Config{
-		Server: ServersConfig{
-			Orchestrator: ServerConfig{
+		Server: ServicesConfig{
+			Orchestrator: OrchestratorServiceConfig{
 				Port: 8080,
 			},
-			Agent: ServerConfig{
-				Port: 8081,
+			Agent: AgentServiceConfig{
+				COMPUTING_POWER: 4,
 			},
-			Web: WebServerConfig{
+			Web: WebServiceConfig{
 				Port:      8082,
 				StaticDir: "\\static",
 			},
@@ -84,8 +93,10 @@ func DefaultConfig() *Config {
 			TIME_UNARY_MINUS_MS:    0,
 			TIME_POWER_MS:          0,
 		},
-		CORS: CORSConfig{
-			AllowOrigin: []string{"*"},
+		Middleware: MiddlewareConfig{
+			ApiKeyPrefix:  "",
+			Authorization: "",
+			AllowOrigin:   []string{"*"},
 		},
 		Logger: LoggerConfig{
 			Level:        0,
@@ -98,53 +109,147 @@ func DefaultConfig() *Config {
 	}
 }
 
-// LoadConfig загружает конфигурацию из TOML файла
-func LoadConfig(filename string) (*Config, error) {
-
-	// Создаем конфиг по умолчанию
-	cfg := DefaultConfig()
-	// Получаем абсолютный путь до файла конфигурации (для запуска из любой директории)
-	absPath, err := filepath.Abs(filename)
-	if err != nil {
-		return cfg, fmt.Errorf("ошибка получния абсолютного пути для файла конфигурации %s: %w", filename, err)
-	}
-
-	// Проверка существования файла
-	_, err = os.Stat(absPath)
-	if os.IsNotExist(err) {
-		return cfg, fmt.Errorf("файл конфигурации %s не найден", filename)
-	}
-	// Открываем файл
-	file, err := os.Open(absPath)
-	if err != nil {
-		return cfg, fmt.Errorf("не удалось открыть файл конфигурации: %w", err)
-	}
-	defer file.Close()
-
-	// Декодируем TOML файл в структуру
-
-	decoder := yaml.NewDecoder(file)
-	if err := decoder.Decode(cfg); err != nil {
-		if err == io.EOF {
-			return cfg, fmt.Errorf("файл конфигурации пуст")
-		} else {
-			return cfg, fmt.Errorf("не удалось декодировать YAML конфигурацию: %w", err)
-		}
-	}
-	return cfg, nil
-}
-
 var (
 	// Глобальная переменная для общего использования
+	Name      string
 	Cfg       *Config
 	once      sync.Once
 	loadError error
 )
 
-func InitConfig(env string) error {
+func loadEnv() error {
+	// Загрузка env переменных из файла .env
+	if err := godotenv.Load(); err != nil {
+		fmt.Println("Файл .env не найден")
+	}
+	// Определение типа приложения - prod или dev
+	env := os.Getenv("APP_ENV")
+
+	if env == "" {
+		fmt.Println("Переменная среды APP_ENV отстутствует или пуста, используется конфигурация по умолчанию")
+		env = "dev" // По умолчанию - разработка
+	}
+
+	Name = env
+
+	// COMPUTING_POWER
+	computingPowerStr := os.Getenv("COMPUTING_POWER")
+	if computingPowerStr != "" {
+		computingPower, err := strconv.Atoi(computingPowerStr)
+		if err != nil {
+			return fmt.Errorf("ошибка преобразования TIME_POWER_MS в int: %w", err)
+		}
+		Cfg.Math.TIME_POWER_MS = computingPower
+	}
+
+	// TIME_ADDITION_MS
+	timeAdditionMSStr := os.Getenv("TIME_ADDITION_MS")
+	if timeAdditionMSStr != "" {
+		timeAdditionMS, err := strconv.Atoi(timeAdditionMSStr)
+		if err != nil {
+			return fmt.Errorf("ошибка преобразования TIME_ADDITION_MS в int: %w", err)
+		}
+		Cfg.Math.TIME_ADDITION_MS = timeAdditionMS
+	}
+
+	// TIME_SUBTRACTION_MS
+	timeSubtractionMSStr := os.Getenv("TIME_SUBTRACTION_MS")
+	if timeSubtractionMSStr != "" {
+		timeSubtractionMS, err := strconv.Atoi(timeSubtractionMSStr)
+		if err != nil {
+			return fmt.Errorf("ошибка преобразования TIME_SUBTRACTION_MS в int: %w", err)
+		}
+		Cfg.Math.TIME_SUBTRACTION_MS = timeSubtractionMS
+	}
+
+	// TIME_MULTIPLICATION_MS
+	timeMultiplicationMSStr := os.Getenv("TIME_MULTIPLICATION_MS")
+	if timeMultiplicationMSStr != "" {
+		timeMultiplicationMS, err := strconv.Atoi(timeMultiplicationMSStr)
+		if err != nil {
+			return fmt.Errorf("ошибка преобразования TIME_MULTIPLICATION_MS в int: %w", err)
+		}
+		Cfg.Math.TIME_MULTIPLICATION_MS = timeMultiplicationMS
+	}
+
+	// TIME_DIVISION_MS
+	timeDivisionMSStr := os.Getenv("TIME_DIVISION_MS")
+	if timeDivisionMSStr != "" {
+		timeDivisionMS, err := strconv.Atoi(timeDivisionMSStr)
+		if err != nil {
+			return fmt.Errorf("ошибка преобразования TIME_DIVISION_MS в int: %w", err)
+		}
+		Cfg.Math.TIME_DIVISION_MS = timeDivisionMS
+	}
+	// TIME_UNARY_MINUS_MS
+	timeUnaryMinusMSStr := os.Getenv("TIME_UNARY_MINUS_MS")
+	if timeUnaryMinusMSStr != "" {
+		timeUnaryMinusMS, err := strconv.Atoi(timeUnaryMinusMSStr)
+		if err != nil {
+			return fmt.Errorf("ошибка преобразования TIME_UNARY_MINUS_MS в int: %w", err)
+		}
+		Cfg.Math.TIME_UNARY_MINUS_MS = timeUnaryMinusMS
+	}
+	// TIME_POWER_MS
+	timePowerMSStr := os.Getenv("TIME_POWER_MS")
+	if timePowerMSStr != "" {
+		timePowerMS, err := strconv.Atoi(timePowerMSStr)
+		if err != nil {
+			return fmt.Errorf("ошибка преобразования TIME_POWER_MS в int: %w", err)
+		}
+		Cfg.Math.TIME_POWER_MS = timePowerMS
+	}
+
+	return nil
+
+}
+
+func InitConfig() error {
 	once.Do(func() {
-		filename := fmt.Sprintf("config/%s.yaml", env)
-		Cfg, loadError = LoadConfig(filename)
+		// Создаем конфиг по умолчанию
+		Cfg = DefaultConfig()
+
+		// Загружает параметры из переменной среды
+		// Перезаписывают значение по умолчанию, перезаписываются YAML конфигом
+		err := loadEnv()
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+
+		filename := fmt.Sprintf("config/%s.yaml", Name)
+		// Получаем абсолютный путь до файла конфигурации (для запуска из любой директории)
+		absPath, err := filepath.Abs(filename)
+		if err != nil {
+			loadError = fmt.Errorf("ошибка получния абсолютного пути для файла конфигурации %s: %w", filename, err)
+			return
+		}
+
+		// Проверка существования файла
+		_, err = os.Stat(absPath)
+		if os.IsNotExist(err) {
+			loadError = fmt.Errorf("файл конфигурации %s не найден", filename)
+			return
+		}
+		// Открываем файл
+		file, err := os.Open(absPath)
+		if err != nil {
+			loadError = fmt.Errorf("не удалось открыть файл конфигурации: %w", err)
+			return
+		}
+		defer file.Close()
+
+		// Декодируем YAML файл в структуру
+		decoder := yaml.NewDecoder(file)
+		if err := decoder.Decode(Cfg); err != nil {
+			if err == io.EOF {
+				loadError = fmt.Errorf("файл конфигурации пуст")
+				return
+			} else {
+				loadError = fmt.Errorf("не удалось декодировать YAML конфигурацию: %w", err)
+				return
+			}
+		}
 	})
+
 	return loadError
 }

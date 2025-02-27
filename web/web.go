@@ -1,28 +1,38 @@
 package web
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
+	"github.com/OinkiePie/calc_2/config"
+	"github.com/OinkiePie/calc_2/pkg/logger"
 	"github.com/OinkiePie/calc_2/web/internal/router"
 )
 
-// StartWebServer запускает HTTP-сервер для обслуживания статических файлов веб-приложения.
+// Web представляет собой веб-сервис.
+type Web struct {
+	errChan chan error   // Канал для отправки ошибок, возникающих в сервисе.
+	server  *http.Server // Указатель на структуру http.Server, управляющую веб-сервером.
+	Addr    string       // Адрес, на котором прослушивает веб-сервер.
+}
+
+// NewWeb создает новый экземпляр веб-сервиса.
 //
 // Args:
 //
-//	errChan: chan error - Канал для отправки ошибок, возникающих при работе сервера.
-//	port: int - Порт, на котором будет запущен веб-сервер.
-//	staticDir: string - Путь к директории, содержащей статические файлы (HTML, CSS, JavaScript, favicon).
+//	errChan: chan error - Канал для отправки ошибок, возникающих при инициализации или работе сервиса.
 //
 // Returns:
 //
-//	*http.Server: Указатель на структуру http.Server, представляющую запущенный сервер агента.
-//	              В случае ошибки при запуске сервера, в канал errChan будет отправлена ошибка.
-func StartWebServer(errChan chan error, port int, staticDir string) *http.Server {
+//	*Web - Указатель на новый экземпляр структуры Web.
+func NewWeb(errChan chan error) *Web {
+	port := config.Cfg.Server.Web.Port
+	staticDir := config.Cfg.Server.Web.StaticDir
+
 	if _, err := os.Stat(staticDir); os.IsNotExist(err) {
-		fmt.Println(staticDir)
 		errChan <- fmt.Errorf("директория со статическими файлами не найдена")
 	}
 
@@ -35,15 +45,29 @@ func StartWebServer(errChan chan error, port int, staticDir string) *http.Server
 		Handler: router,
 	}
 
+	return &Web{errChan: errChan, server: srv, Addr: addr}
+}
+
+// Start запускает веб-сервер в отдельной горутине. Если во время запуска
+// возникает ошибка, она отправляется в канал ошибок.
+func (w *Web) Start() {
 	// Запускаем сервер в отдельной горутине, чтобы не блокировать основной поток выполнения.
 	go func() {
 		// Запускаем прослушивание входящих соединений на указанном адресе.
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+		if err := w.server.ListenAndServe(); err != http.ErrServerClosed {
 			// Если при запуске сервера произошла ошибка, отправляем её в канал ошибок.
-			errChan <- err
+			w.errChan <- err
 		}
 	}()
+}
 
-	// Возвращаем указатель на созданный и запущенный сервер.
-	return srv
+// Stop останавливает веб-сервер. Он использует контекст с таймаутом, чтобы
+// гарантировать, что остановка не займет слишком много времени.
+func (w *Web) Stop() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	err := w.server.Shutdown(ctx)
+	if err != nil {
+		logger.Log.Errorf("Ошибка при остановке сервиса Веб")
+	}
 }

@@ -3,8 +3,9 @@ package task_manager
 import (
 	"sync"
 
-	"github.com/OinkiePie/calc_2/orchestrator/internal/models"
 	"github.com/OinkiePie/calc_2/orchestrator/internal/task_splitter"
+	"github.com/OinkiePie/calc_2/pkg/logger"
+	"github.com/OinkiePie/calc_2/pkg/models"
 	"github.com/google/uuid"
 )
 
@@ -54,7 +55,6 @@ func (tm *TaskManager) AddExpression(expressionString string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	// Создаем структуру Expression.
 	expression := models.Expression{
 		ID:               id,
@@ -111,25 +111,17 @@ func (tm *TaskManager) GetExpression(id string) (models.Expression, bool) {
 	expression, ok := tm.expressions[id]
 
 	if !ok {
-		return models.Expression{}, ok
+		return models.Expression{}, false
 	}
 
-	//Проверяем все ли задачи выполнены
-	for _, task := range expression.Tasks {
-		if task.Status != "completed" {
-			return expression, ok
-		}
+	//Проверяем выполнена ли задача
+	if expression.Status != "completed" {
+		return expression, true
 	}
-	// Если все задачи выполнены удаляем выражение, из списка ожидающих
+	// Если выражение забирается пользователем удаляем из списка ожидающих
 	delete(tm.expressions, id)
 
-	//Меняем статус выражение на "completed"
-	expression.Status = "completed"
-	// Сплиттер разделяет задачи так, что в конце будет находиться последня операция.
-	// Если задача имеет зависимости, она будет корневым элементом
-	expression.Result = expression.Tasks[len(expression.Tasks)-1].Result
-
-	return expression, ok
+	return expression, true
 }
 
 // GetTasks - возвращает список всех задач для заданного выражения.
@@ -308,7 +300,8 @@ func (tm *TaskManager) areDependenciesCompleted(tasks []models.Task, dependencie
 	return true
 }
 
-// CompleteTask - обновляет статус и результат задачи.
+// CompleteTask - обновляет статус и результат задачи. Если все задачи
+// выполняются присваивает выражению статус completed.
 //
 // Args:
 //
@@ -319,7 +312,7 @@ func (tm *TaskManager) areDependenciesCompleted(tasks []models.Task, dependencie
 // Returns:
 //
 //	bool - true, если задача успешно завершена и обновлена, false в противном случае.
-func (tm *TaskManager) CompleteTask(expressionID string, taskID string, result float64) bool {
+func (tm *TaskManager) CompleteTask(expressionID, taskID, taskErr string, result float64) bool {
 	tm.expressionsMu.Lock()
 	defer tm.expressionsMu.Unlock()
 
@@ -327,6 +320,12 @@ func (tm *TaskManager) CompleteTask(expressionID string, taskID string, result f
 	expr, ok := tm.expressions[expressionID]
 	if !ok {
 		return false
+	}
+
+	// Проверяем выполнима ли задача
+	if taskErr != "" {
+		tm.impossibleTask(expressionID, taskErr)
+		return true
 	}
 
 	// Итерируемся по задачам в выражении.
@@ -337,6 +336,23 @@ func (tm *TaskManager) CompleteTask(expressionID string, taskID string, result f
 			res := result // Создаем копию результата, чтобы взять указатель на неё.
 			expr.Tasks[i].Result = &res
 			expr.Tasks[i].Status = "completed"
+			// Проверяем все ли задачи выполнены.
+			allCompleted := true
+			for _, task := range expr.Tasks {
+				if task.Status != "completed" {
+					allCompleted = false
+					break // Нашли незавершенную задачу, дальше проверять нет смысла.
+				}
+			}
+			// Присваиваем статус completed.
+			if allCompleted {
+				expr.Status = "completed"
+				//Меняем статус выражение на "completed"
+				// Сплиттер разделяет задачи так, что в конце будет находиться последня операция.
+				// Если задача имеет зависимости, она будет корневым элементом
+				expr.Result = expr.Tasks[len(expr.Tasks)-1].Result
+			}
+
 			tm.expressions[expressionID] = expr // Обновляем выражение в map.
 			return true
 		}
@@ -344,4 +360,19 @@ func (tm *TaskManager) CompleteTask(expressionID string, taskID string, result f
 
 	//Если задача не найдена возвращаем false
 	return false
+}
+
+// impossibleTask помечает выражение как невозможное для выполнения,
+// сохраняя информацию о задаче, которая привела к невозможности выполнения.
+//
+// Args:
+//
+//	expressionID: string - ID выражения, которое невозможно выполнить.
+//	taskID: string - ID задачи, ставшее ошибкой.
+func (tm *TaskManager) impossibleTask(expressionID, taskErr string) {
+	expr := tm.expressions[expressionID]
+	expr.Status = "error"
+	expr.Error = taskErr
+	tm.expressions[expressionID] = expr
+	logger.Log.Debugf("Выражение %s невозможно выполнить: %s", expressionID, taskErr)
 }
