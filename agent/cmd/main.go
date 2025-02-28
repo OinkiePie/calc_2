@@ -1,4 +1,4 @@
-package agent
+package main
 
 import (
 	"context"
@@ -10,7 +10,9 @@ import (
 	"github.com/OinkiePie/calc_2/agent/internal/client"
 	"github.com/OinkiePie/calc_2/agent/internal/worker"
 	"github.com/OinkiePie/calc_2/config"
+	"github.com/OinkiePie/calc_2/pkg/initializer"
 	"github.com/OinkiePie/calc_2/pkg/logger"
+	"github.com/OinkiePie/calc_2/pkg/shutdown"
 )
 
 // Agent представляет собой сервис агента, отвечающий за выполнение задач.
@@ -86,4 +88,21 @@ func (a *Agent) Stop() {
 	if a.workers != nil {
 		a.wg.Wait()
 	}
+}
+
+func main() {
+	// Инициализация конфига и логгера
+	initializer.Init()
+
+	errChan := make(chan error, 1)
+
+	// Запуск сервиса агента в отдельной горутине чтобы можно было поймать завершение
+	agentService := NewAgent(errChan)
+	go func() {
+		logger.Log.Debugf("Запуск сервиса агента...")
+		agentService.Start()
+		logger.Log.Infof("Сервис агента запущен")
+	}()
+
+	shutdown.WaitForShutdown(errChan, "Agent", agentService)
 }

@@ -207,28 +207,25 @@ func (l *Logger) DisableTimestamp(disable bool) {
 
 var (
 	// Глобальная переменная для общего использования
-	Log  *Logger
-	once sync.Once
+	Log *Logger
 )
 
 // Инициализируем глоабльный логгер
 func InitLogger(options Options) {
-	once.Do(func() {
-		if options.TimeFormat == "" {
-			options.TimeFormat = "2006-01-02 15:04:05"
-		}
-		if options.CallDepth == 0 {
-			options.CallDepth = 2
-		}
+	if options.TimeFormat == "" {
+		options.TimeFormat = "2006-01-02 15:04:05"
+	}
+	if options.CallDepth == 0 {
+		options.CallDepth = 2
+	}
 
-		Log = &Logger{
-			level:        options.Level,
-			log:          log.New(os.Stdout, "", 0),
-			timeFormat:   options.TimeFormat,
-			callDepth:    options.CallDepth,
-			disableCall:  options.DisableCall,
-			disableTime:  options.DisableTime,
-			disableColor: options.DisableColor,
-		}
-	})
+	Log = &Logger{
+		level:        options.Level,
+		log:          log.New(os.Stdout, "", 0),
+		timeFormat:   options.TimeFormat,
+		callDepth:    options.CallDepth,
+		disableCall:  options.DisableCall,
+		disableTime:  options.DisableTime,
+		disableColor: options.DisableColor,
+	}
 }

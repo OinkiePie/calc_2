@@ -1,4 +1,4 @@
-package orchestrator
+package main
 
 import (
 	"context"
@@ -8,7 +8,10 @@ import (
 
 	"github.com/OinkiePie/calc_2/config"
 	"github.com/OinkiePie/calc_2/orchestrator/internal/router"
+	"github.com/OinkiePie/calc_2/pkg/initializer"
 	"github.com/OinkiePie/calc_2/pkg/logger"
+	"github.com/OinkiePie/calc_2/pkg/shutdown"
+	"github.com/rs/cors"
 )
 
 // Orchestrator представляет собой сервис оркестратора.
@@ -33,10 +36,17 @@ func NewOrchestrator(errChan chan error) *Orchestrator {
 	addr := fmt.Sprintf("localhost:%d", port)
 	router := router.NewOrchestratorRouter()
 
+	c := cors.New(cors.Options{
+		AllowedOrigins:   config.Cfg.Middleware.AllowOrigin,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+	})
+	routerCORS := c.Handler(router)
 	// Создаем экземпляр структуры http.Server, указывая адрес и обработчик
 	srv := &http.Server{
 		Addr:    addr,
-		Handler: router,
+		Handler: routerCORS,
 	}
 
 	return &Orchestrator{errChan: errChan, server: srv, Addr: addr}
@@ -64,4 +74,21 @@ func (o *Orchestrator) Stop() {
 	if err != nil {
 		logger.Log.Errorf("Ошибка при остановке сервиса Оркестратор")
 	}
+}
+
+func main() {
+	// Инициализация конфига и логгера
+	initializer.Init()
+
+	errChan := make(chan error, 1)
+
+	// Запуск сервиса агента в отдельной горутине чтобы можно было поймать завершение
+	orchestratorService := NewOrchestrator(errChan)
+	go func() {
+		logger.Log.Debugf("Запуск веб сервиса...")
+		orchestratorService.Start()
+		logger.Log.Infof("Веб сервис запущен на %s", orchestratorService.Addr)
+	}()
+
+	shutdown.WaitForShutdown(errChan, "Orchestrator", orchestratorService)
 }

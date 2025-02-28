@@ -1,4 +1,4 @@
-package web
+package main
 
 import (
 	"context"
@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/OinkiePie/calc_2/config"
+	"github.com/OinkiePie/calc_2/pkg/initializer"
 	"github.com/OinkiePie/calc_2/pkg/logger"
+	"github.com/OinkiePie/calc_2/pkg/shutdown"
 	"github.com/OinkiePie/calc_2/web/internal/router"
 )
 
@@ -30,6 +32,7 @@ type Web struct {
 //	*Web - Указатель на новый экземпляр структуры Web.
 func NewWeb(errChan chan error) *Web {
 	port := config.Cfg.Server.Web.Port
+	portOrchestrator := config.Cfg.Server.Orchestrator.Port
 	staticDir := config.Cfg.Server.Web.StaticDir
 
 	if _, err := os.Stat(staticDir); os.IsNotExist(err) {
@@ -37,7 +40,7 @@ func NewWeb(errChan chan error) *Web {
 	}
 
 	addr := fmt.Sprintf("localhost:%d", port)
-	router := router.NewWebRouter(staticDir)
+	router := router.NewWebRouter(staticDir, portOrchestrator)
 
 	// Создаем экземпляр структуры http.Server, указывая адрес и обработчик
 	srv := &http.Server{
@@ -70,4 +73,21 @@ func (w *Web) Stop() {
 	if err != nil {
 		logger.Log.Errorf("Ошибка при остановке сервиса Веб")
 	}
+}
+
+func main() {
+	// Инициализация конфига и логгера
+	initializer.Init()
+
+	errChan := make(chan error, 1)
+
+	// Запуск сервиса агента в отдельной горутине чтобы можно было поймать завершение
+	webService := NewWeb(errChan)
+	go func() {
+		logger.Log.Debugf("Запуск веб сервиса...")
+		webService.Start()
+		logger.Log.Infof("Веб сервис запущен на %s", webService.Addr)
+	}()
+
+	shutdown.WaitForShutdown(errChan, "Web", webService)
 }

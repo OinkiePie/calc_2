@@ -11,5 +11,6 @@ require (
 
 require (
 	github.com/kr/pretty v0.3.1 // indirect
+	github.com/rs/cors v1.11.1 
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 )

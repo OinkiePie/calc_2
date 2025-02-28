@@ -75,7 +75,7 @@ func NewOrchestratorHandlers(tm *task_manager.TaskManager) *Handlers {
 func (h *Handlers) AddExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Failed to read body", http.StatusUnprocessableEntity) // 422
+		h.writeErrorResponse(w, http.StatusUnprocessableEntity, "не удалось прочитать запрос") //422
 		return
 	}
 
@@ -83,7 +83,7 @@ func (h *Handlers) AddExpressionHandler(w http.ResponseWriter, r *http.Request) 
 
 	err = json.Unmarshal(body, &requestBody)
 	if err != nil {
-		http.Error(w, "Failed to parse JSON", http.StatusUnprocessableEntity) // 422
+		h.writeErrorResponse(w, http.StatusUnprocessableEntity, "не удалось декодировать JSON") //422
 		return
 	}
 
@@ -91,13 +91,13 @@ func (h *Handlers) AddExpressionHandler(w http.ResponseWriter, r *http.Request) 
 	// *разбиватель на задачи* чтобы не делать это повторно
 	trimmedBody := strings.TrimSpace(requestBody.Expression)
 	if trimmedBody == "" {
-		http.Error(w, "Expression is required", http.StatusUnprocessableEntity) // 422
+		h.writeErrorResponse(w, http.StatusUnprocessableEntity, "выражения обязательно") //422
 		return
 	}
 
 	id, err := h.taskManager.AddExpression(trimmedBody)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError) // 500
+		h.writeErrorResponse(w, http.StatusInternalServerError, err.Error()) //500
 		return
 	}
 
@@ -160,7 +160,7 @@ func (h *Handlers) GetExpressionsHandler(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "application/json")
 	err := json.NewEncoder(w).Encode(response) // 200
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError) // 500
+		h.writeErrorResponse(w, http.StatusInternalServerError, err.Error()) // 500
 		return
 	}
 
@@ -206,8 +206,9 @@ func (h *Handlers) GetExpressionHandler(w http.ResponseWriter, r *http.Request) 
 	id := vars["id"]
 
 	expression, ok := h.taskManager.GetExpression(id)
+
 	if !ok {
-		http.Error(w, "Expression not found", http.StatusNotFound) // 404
+		h.writeErrorResponse(w, http.StatusNotFound, "выражение не найдено") // 404
 		return
 	}
 
@@ -224,7 +225,7 @@ func (h *Handlers) GetExpressionHandler(w http.ResponseWriter, r *http.Request) 
 
 	err := json.NewEncoder(w).Encode(response) // 200
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError) // 500
+		h.writeErrorResponse(w, http.StatusInternalServerError, err.Error()) // 500
 		return
 	}
 
@@ -321,7 +322,7 @@ func (h *Handlers) GetTaskIDHandler(w http.ResponseWriter, r *http.Request) {
 	taskMap := h.taskManager.GetTasks(id)
 
 	if len(taskMap) == 0 {
-		http.Error(w, "task undefined", http.StatusNotFound) // 404
+		h.writeErrorResponse(w, http.StatusNotFound, "задача не найдена") // 404
 		return
 	}
 
@@ -330,7 +331,7 @@ func (h *Handlers) GetTaskIDHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	err := json.NewEncoder(w).Encode(response)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.writeErrorResponse(w, http.StatusInternalServerError, err.Error()) // 500
 		return
 	}
 
@@ -372,7 +373,7 @@ func (h *Handlers) GetTaskIDHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) CompleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Failed to read body", http.StatusBadRequest)
+		h.writeErrorResponse(w, http.StatusBadRequest, "не удалось прочитать тело запроса") // 400
 		return
 	}
 
@@ -380,17 +381,30 @@ func (h *Handlers) CompleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = json.Unmarshal(body, &requestBody)
 	if err != nil {
-		http.Error(w, "Failed to parse JSON", http.StatusBadRequest)
+		h.writeErrorResponse(w, http.StatusBadRequest, "не удалось декодировать JSON") // 400
 		return
 	}
 
 	success := h.taskManager.CompleteTask(requestBody.Expression, requestBody.ID, requestBody.Error, requestBody.Result)
 	if !success {
-		http.Error(w, "Task not found", http.StatusNotFound) // 404
+		h.writeErrorResponse(w, http.StatusNotFound, "Задача не найдена") // 404
 		return
 	}
 
 	w.WriteHeader(http.StatusOK) // 200
 
 	logger.Log.Debugf("Задача %s успешно выполнена", requestBody.ID)
+}
+
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+func (h *Handlers) writeErrorResponse(w http.ResponseWriter, statusCode int, err string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	errResponse := ErrorResponse{Error: err}
+	if encodeErr := json.NewEncoder(w).Encode(errResponse); encodeErr != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError) // Крайний случай
+	}
 }

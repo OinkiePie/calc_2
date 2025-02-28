@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"sync"
 
 	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
@@ -111,10 +110,8 @@ func DefaultConfig() *Config {
 
 var (
 	// Глобальная переменная для общего использования
-	Name      string
-	Cfg       *Config
-	once      sync.Once
-	loadError error
+	Name string
+	Cfg  *Config
 )
 
 func loadEnv() error {
@@ -205,51 +202,48 @@ func loadEnv() error {
 }
 
 func InitConfig() error {
-	once.Do(func() {
-		// Создаем конфиг по умолчанию
-		Cfg = DefaultConfig()
+	// Создаем конфиг по умолчанию
+	Cfg = DefaultConfig()
 
-		// Загружает параметры из переменной среды
-		// Перезаписывают значение по умолчанию, перезаписываются YAML конфигом
-		err := loadEnv()
-		if err != nil {
-			fmt.Println(err.Error())
-		}
+	// Загружает параметры из переменной среды
+	// Перезаписывают значение по умолчанию, перезаписываются YAML конфигом
+	err := loadEnv()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 
-		filename := fmt.Sprintf("config/%s.yaml", Name)
-		// Получаем абсолютный путь до файла конфигурации (для запуска из любой директории)
-		absPath, err := filepath.Abs(filename)
-		if err != nil {
-			loadError = fmt.Errorf("ошибка получния абсолютного пути для файла конфигурации %s: %w", filename, err)
-			return
-		}
+	filename := fmt.Sprintf("config/%s.yaml", Name)
+	// Получаем абсолютный путь до файла конфигурации (для запуска из любой директории)
+	absPath, err := filepath.Abs(filename)
+	if err != nil {
+		return fmt.Errorf("ошибка получния абсолютного пути для файла конфигурации %s: %w", filename, err)
+	}
 
-		// Проверка существования файла
-		_, err = os.Stat(absPath)
-		if os.IsNotExist(err) {
-			loadError = fmt.Errorf("файл конфигурации %s не найден", filename)
-			return
-		}
-		// Открываем файл
-		file, err := os.Open(absPath)
-		if err != nil {
-			loadError = fmt.Errorf("не удалось открыть файл конфигурации: %w", err)
-			return
-		}
-		defer file.Close()
+	// Проверка существования файла
+	_, err = os.Stat(absPath)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("файл конфигурации %s не найден", filename)
 
-		// Декодируем YAML файл в структуру
-		decoder := yaml.NewDecoder(file)
-		if err := decoder.Decode(Cfg); err != nil {
-			if err == io.EOF {
-				loadError = fmt.Errorf("файл конфигурации пуст")
-				return
-			} else {
-				loadError = fmt.Errorf("не удалось декодировать YAML конфигурацию: %w", err)
-				return
-			}
-		}
-	})
+	}
+	// Открываем файл
+	file, err := os.Open(absPath)
+	if err != nil {
+		return fmt.Errorf("не удалось открыть файл конфигурации: %w", err)
 
-	return loadError
+	}
+	defer file.Close()
+
+	// Декодируем YAML файл в структуру
+	decoder := yaml.NewDecoder(file)
+	if err := decoder.Decode(Cfg); err != nil {
+		if err == io.EOF {
+			return fmt.Errorf("файл конфигурации пуст")
+
+		} else {
+			return fmt.Errorf("не удалось декодировать YAML конфигурацию: %w", err)
+
+		}
+	}
+
+	return nil
 }

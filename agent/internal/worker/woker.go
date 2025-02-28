@@ -111,6 +111,16 @@ func (w *Worker) Start(ctx context.Context) {
 				task.Error = fmt.Sprintf("IMPOSSIBLE: %v", err)
 			}
 
+			if math.IsInf(result, 1) {
+				result = 0
+				task.Error = "result is +Inf"
+			}
+
+			if math.IsInf(result, -1) {
+				result = 0
+				task.Error = "result is -Inf"
+			}
+
 			// Отправляем результат (даже если был таймаут)
 			completedTask := models.TaskCompleted{
 				Expression: task.Expression,
@@ -121,7 +131,7 @@ func (w *Worker) Start(ctx context.Context) {
 
 			err = w.apiClient.CompleteTask(completedTask)
 			if err != nil {
-				logger.Log.Errorf("Рабочий %d: Ошибка при отправлена задачи %s: %v", w.workerID, task.ID, err)
+				logger.Log.Errorf("Рабочий %d: Ошибка при отправлении задачи %s: %v", w.workerID, task.ID, err)
 				time.Sleep(10 * time.Second)
 			} else {
 				logger.Log.Debugf("Рабочий %d: Задача %s успешно отправлена", w.workerID, task.ID)

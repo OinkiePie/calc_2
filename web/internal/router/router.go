@@ -14,14 +14,15 @@ import (
 // Returns:
 //
 //	*mux.Router - Указатель на созданный и настроенный роутер gorilla/mux.
-func NewWebRouter(static string) *mux.Router {
-	handler := handlers.NewWebHandlers(static)
+func NewWebRouter(static string, port int) *mux.Router {
+	handler := handlers.NewWebHandlers(static, port)
 	router := mux.NewRouter()
 
 	router.HandleFunc("/favicon.ico", handler.FaviconHandler)
 	router.HandleFunc("/script.js", handler.ScriptHandler)
 	router.HandleFunc("/style.css", handler.StyleHandler)
 
+	router.HandleFunc("/api", handler.ApiHandler)
 	// Обработчик для всех остальных путей, начиная с "/".
 	// Это обеспечивает обслуживание SPA, где для всех путей возвращается index.html.
 	router.PathPrefix("/").HandlerFunc(handler.IndexHandler)

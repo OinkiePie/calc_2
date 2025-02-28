@@ -20,9 +20,10 @@ middleware:
   authorization: ''
   cors_allow_origin:
     - '*'
+    - 'http://localhost:8082'
 
 logger:
-  level: 0 # 0 - дебаг. Включая его будьте готовы к обильному спаму в терминал.
+  level: 1 # 0 - дебаг. Включая его будьте готовы к обильному спаму в терминал.
   time_format: '2006-01-02 15:04:05'
   call_depth: 2
   disable_call: false

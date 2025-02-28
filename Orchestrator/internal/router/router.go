@@ -42,7 +42,5 @@ func NewOrchestratorRouter() *mux.Router {
 	// Debug endpoints (конечные точки, используемые только для отладки)
 	internalRouter.HandleFunc("/task/{id}", handler.GetTaskIDHandler).Methods("GET")
 
-	router.Use(middleware.EnableCORS)
-
 	return router
 }

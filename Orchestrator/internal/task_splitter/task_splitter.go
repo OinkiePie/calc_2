@@ -14,13 +14,13 @@ import (
 )
 
 var (
-	ErrOneOperand        = errors.New("at least two operars are required to calculate")
-	ErrUnopenedParen     = errors.New("unopened parenthesis")
-	ErrUnclosedParen     = errors.New("unclosed parenthesis")
-	ErrInvalidSyntax     = errors.New("invalid syntax")
-	ErrNotEnoughOperands = errors.New("not enough operands")
-	ErrUnaryMinus        = errors.New("not enough operands for the unary minus")
-	ErrRPN               = errors.New("error during converting to RPN")
+	ErrOneOperand        = errors.New("минимум два операра требуются для расчета")
+	ErrUnopenedParen     = errors.New("неоткрытая скобка")
+	ErrUnclosedParen     = errors.New("незакрытая скобка")
+	ErrInvalidSyntax     = errors.New("неверный синтаксис")
+	ErrNotEnoughOperands = errors.New("недостаточно операндов")
+	ErrUnaryMinus        = errors.New("недостаточно операндов для унарного минуса")
+	ErrRPN               = errors.New("не удалось преобразовать RPN")
 )
 
 // ParseExpression разбирает математическое выражение, представленное в виде строки, и преобразует его в набор задач для выполнения.
