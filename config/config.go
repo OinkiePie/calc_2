@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/OinkiePie/calc_2/pkg/logger"
 	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
 )
@@ -114,7 +115,7 @@ var (
 	Cfg  *Config
 )
 
-func loadEnv() error {
+func loadName() {
 	// Загрузка env переменных из файла .env
 	if err := godotenv.Load(); err != nil {
 		fmt.Println("Файл .env не найден")
@@ -128,6 +129,28 @@ func loadEnv() error {
 	}
 
 	Name = env
+}
+
+func loadEnv() error {
+	// PORT_ORCHESTRATOR
+	portOrchestratorStr := os.Getenv("PORT_ORCHESTRATOR")
+	if portOrchestratorStr != "" {
+		portOrchestrator, err := strconv.Atoi(portOrchestratorStr)
+		if err != nil {
+			return fmt.Errorf("ошибка преобразования PORT_ORCHESTRATOR в int: %w", err)
+		}
+		Cfg.Server.Orchestrator.Port = portOrchestrator
+	}
+
+	// PORT_WEB
+	portWebStr := os.Getenv("PORT_WEB")
+	if portWebStr != "" {
+		portWeb, err := strconv.Atoi(portWebStr)
+		if err != nil {
+			return fmt.Errorf("ошибка преобразования PORT_WEB в int: %w", err)
+		}
+		Cfg.Server.Web.Port = portWeb
+	}
 
 	// COMPUTING_POWER
 	computingPowerStr := os.Getenv("COMPUTING_POWER")
@@ -205,12 +228,8 @@ func InitConfig() error {
 	// Создаем конфиг по умолчанию
 	Cfg = DefaultConfig()
 
-	// Загружает параметры из переменной среды
-	// Перезаписывают значение по умолчанию, перезаписываются YAML конфигом
-	err := loadEnv()
-	if err != nil {
-		fmt.Println(err.Error())
-	}
+	// Ищем название файла конфигурации
+	loadName()
 
 	filename := fmt.Sprintf("config/configs/%s.yml", Name)
 	// Получаем абсолютный путь до файла конфигурации (для запуска из любой директории)
@@ -243,6 +262,12 @@ func InitConfig() error {
 			return fmt.Errorf("не удалось декодировать YAML конфигурацию: %w", err)
 
 		}
+	}
+
+	// Записываем переменные среды поверх других
+	err = loadEnv()
+	if err != nil {
+		logger.Log.Errorf(err.Error())
 	}
 
 	return nil

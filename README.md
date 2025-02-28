@@ -64,20 +64,27 @@ calc_2/
 При установке проекта будут уже доступны 2 варианта запуска: dev и prod.
 Вы можете создать свой файл конфигурации в этой же папке.
 Выбрать файл конфигурации можно переменной окружения APP_ENV (APP_ENV=dev).
-Вы можете изменить её в файле .env.
+Вы можете изменить её в файле .env. 
 В зависимости от терминала вы можете перезаписать её следующим образом:
 
 (только для текущей сессии командной строки)
 ```powershell
-$env:APP_ENV="<name>.yml"
+$env:APP_ENV="<name>"
 ```
 ```cmd
-set APP_ENV="<name>.yml"
+set APP_ENV="<name>"
 ```
+
+Или указать при запуске (Docker):
+```bash
+docker run -e APP_ENV=prod -p 8081:8081 web:latest
+```
+
 ### Процесс применения конфигурации приложением
 1. Создается конфигурация по умолчанию
-2. Поля связанные с длительностью выполнения математических операций и количество рабочих агента перезаписывают соответсвующие поля в конфигурации по умолчанию
-3. Файл APP_ENV.yml перезаписывает все поля (включая env) если они в нем указаны (иначе пропускает)
+2. Файл <APP_ENV>.yml перезаписывает все поля если они в нем указаны (иначе пропускает)
+3. Поля связанные с длительностью выполнения математических операций, количество рабочих агента и порты из .env перезаписывают соответсвующие поля в конфигурации
+
 
 Вы можете настроить:
 *   Порты для каждого сервиса.
@@ -156,7 +163,9 @@ logger:
 
     ```bash
     build/agent
+
     build/orchestrator
+
     build/web
     ```
 
@@ -172,24 +181,26 @@ logger:
 2.  Соберите Docker-образы для каждого сервиса:
 
     ```bash
-    docker build -t agent:latest -f agent/cmd/Dockerfile .
+    docker build -t agent:latest -f agent/Dockerfile .
 
-    docker build -t orchestrator:latest -f orchestrator/cmd/Dockerfile .
+    docker build -t orchestrator:latest -f orchestrator/Dockerfile .
     
-    docker build -t web:latest -f web/cmd/Dockerfile .
+    docker build -t web:latest -f web/Dockerfile .
     ```
 
 3.  Запустите контейнеры для каждого сервиса:
 
     ```bash
-    docker run -p agent:latest
+    docker run agent:latest
+
     docker run -p 8080:8080 orchestrator:latest
+
     docker run -p 8081:8081 web:latest
     ```
 
-    Если собираетесь изменить файл конфигурации не забудьте указать это при запуске и изменить DockerFIle:
+    Для запуска с другим портом используйте (пример для Web сервиса):
     ```bash
-    docker run -e APP_ENV=<файл_конфигурации_с_нужным_портом> -p <порт>:<порт> orchestrator:latest
+    docker run -e PORT_WEB=8085 -p 8085:8085 web:latest
     ```
 
 
