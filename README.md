@@ -83,7 +83,7 @@ docker run -e APP_ENV=prod -p 8081:8081 web:latest
 ### Процесс применения конфигурации приложением
 1. Создается конфигурация по умолчанию
 2. Файл <APP_ENV>.yml перезаписывает все поля если они в нем указаны (иначе пропускает)
-3. Поля связанные с длительностью выполнения математических операций, количество рабочих агента и порты из .env перезаписывают соответсвующие поля в конфигурации
+3. Поля связанные с длительностью выполнения математических операций, количество рабочих агента и порты из .env перезаписывают соответсвующие поля в конфигурации (даже если они указаны в yml)
 
 
 Вы можете настроить:
@@ -136,6 +136,8 @@ logger:
 ```
 ## Сборка и запуск
 
+### Сборка:
+
 ### Сборка (без Docker):
 
 1.  Клонируйте репозиторий:
@@ -154,10 +156,14 @@ logger:
     
     go build -o build/web.exe ./web/cmd/main.go
     ```
+    или
+    ```bash
+    make build
+    ```
 
 ### Запуск (без Docker):
 
-1.  Проверьте свою конфигурацию (если вы в ней не уверены) в `config/configs/name.yml`.
+1.  Проверьте наличие конфигурации (если вы в ней не уверены) в `config/configs/name.yml`.
     
 2.  Запустите сервисы в отдельных терминалах:
 
@@ -179,7 +185,6 @@ logger:
     ```
 
 2.  Соберите Docker-образы для каждого сервиса:
-
     ```bash
     docker build -t agent:latest -f agent/Dockerfile .
 
@@ -187,7 +192,10 @@ logger:
     
     docker build -t web:latest -f web/Dockerfile .
     ```
-
+    или
+    ```bash
+    make d-build
+    ```
 3.  Запустите контейнеры для каждого сервиса:
 
     ```bash
@@ -203,40 +211,16 @@ logger:
     docker run -e PORT_WEB=8085 -p 8085:8085 web:latest
     ```
 
-
 ### Запуск с помощью Docker Compose (рекомендуется):
 
-1.  Создайте файл `docker-compose.yml` или используйте уже существующий. Пример:
-
-    ```yml
-    services:
-      agent:
-        build:
-          context: .
-          dockerfile: agent/agent/Dockerfile
-        depends_on:
-          - orchestrator
-      orchestrator:
-        build:
-          context: .
-          dockerfile: orchestrator/cmd/Dockerfile
-        ports:
-          - "8080:8080"
-      web:
-        build:
-          context: .
-          dockerfile: web/cmd/Dockerfile
-        ports:
-          - "8081:8081"
-        depends_on:
-          - orchestrator
-    ```
+1.  Создайте файл `docker-compose.yml` или используйте уже существующий.
 
 2.  Запустите приложение с помощью Docker Compose:
 
     ```bash
     docker-compose up -d
     ```
+
 
 ## Использование
 Вы можете открыть `orchestrator\internal\handlers\handlers.go` и `orchestrator\internal\router\router.go` чтобы увидеть подробное описание каждого запроса, указанное в коментариях, включая параметры, пример корректного овтета или ошибки

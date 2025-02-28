@@ -24,7 +24,8 @@ func Init() {
 
 	if err != nil {
 		logger.Log.Errorf(err.Error())
-		logger.Log.Warnf("Ошибка при загрузке конфигурации, используется конфигурация по умолчанию")
+		logger.Log.Warnf("Ошибка при загрузке конфигурации, используется конфигурация dev, если она существует")
+	} else {
+		logger.Log.Infof("Загружена конфигурация: %s", config.Name)
 	}
-	logger.Log.Infof("Загружена конфигурация: %s", config.Name)
 }
