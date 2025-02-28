@@ -12,7 +12,7 @@ type Task struct {
 	Operation_time int
 	// Dependencies - Список ID задач, результаты которых необходимы для выполнения данной задачи.
 	Dependencies []string
-	// Status - Статус задачи ("pending", "processing", "completed").
+	// Status - Статус задачи ("pending", "processing", "completed", "error").
 	Status string
 	// Result - Указатель на результат выполнения задачи. Может быть nil, если задача ещё не выполнена.
 	Result *float64
@@ -34,7 +34,7 @@ type TaskResponse struct {
 	// Используется для опитмизации возвращения резульата агентом.
 	Expression string `json:"expression"`
 	// Error - Указывает на невыполниасть задачи
-	Error string `json:"error"`
+	Error string `json:"error,omitempty"`
 }
 
 // TaskCompleted представляет структуру для получения информации о завершенной задаче из HTTP-запроса.
@@ -47,5 +47,5 @@ type TaskCompleted struct {
 	// Result - Результат вычисления задачи.
 	Result float64 `json:"result"`
 	// Error - Указывает на невыполниасть задачи
-	Error string `json:"error"`
+	Error string `json:"error,omitempty"`
 }

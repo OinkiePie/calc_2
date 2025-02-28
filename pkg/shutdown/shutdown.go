@@ -8,13 +8,19 @@ import (
 	"github.com/OinkiePie/calc_2/pkg/logger"
 )
 
-// Shutdownable определяет интерфейс для сервисов, которые могут быть остановлены.
+// Shutdownable определяет интерфейс для сервисов, поддерживающих корректное завершение работы.
 type Shutdownable interface {
-	Stop()
+	Stop() // Stop выполняет остановку сервиса.
 }
 
-// WaitForShutdown ожидает сигнала завершения и корректно завершает работу сервиса.
-// Принимает канал для ошибок, название сервиса и функцию остановки сервиса.
+// WaitForShutdown ожидает сигнал завершения (os.Interrupt или syscall.SIGTERM)
+// и затем корректно завершает работу указанного сервиса.
+//
+// Args:
+//
+//	errChan: chan error - Канал, из которого читаются ошибки, возникшие во время работы сервиса.
+//	serviceName: string - Название сервиса (для логирования).
+//	service: Shutdownable - Интерфейс Shutdownable, предоставляющий метод Stop() для остановки сервиса.
 func WaitForShutdown(errChan <-chan error, serviceName string, service Shutdownable) {
 	// Создаем канал для обработки сигналов завершения (Ctrl+C, SIGTERM)
 	sigint := make(chan os.Signal, 1)

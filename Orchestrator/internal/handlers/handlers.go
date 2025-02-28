@@ -54,23 +54,23 @@ func NewOrchestratorHandlers(tm *task_manager.TaskManager) *Handlers {
 //	  "id": "уникальный ID созданного выражения"
 //	}
 //
-//	42 Unprocessable Entity:
+//	422 Unprocessable Entity:
 //	{
-//	  "error": "Ошибка прочтение содержания запроса"
+//	  "error": "не удалось прочитать запрос"
 //	}
 //
 //	{
-//	  "error": "Ошибка при декодировании JSON"
+//	  "error": "не удалось декодировать JSON"
 //	}
 //
 //	{
-//	  "error": "Выражения обязательно"
+//	  "error": "выражения обязательно"
 //	}
 //
 // 500 Internal Server Error:
 //
 //	{
-//	  "error": "Ошибка при добавлении выражения в TaskManager"
+//	  "error": "Содержание ошибки при добавлении выражения в TaskManager"
 //	}
 func (h *Handlers) AddExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
@@ -125,9 +125,10 @@ func (h *Handlers) AddExpressionHandler(w http.ResponseWriter, r *http.Request) 
 //	{
 //	  "expressions": [
 //	    {
-//	      "id": "уникальный ID выражения",
-//	      "status": "статус выражения (pending, processing, completed)",
-//	      "result": "результат выражения (может отсутствовать, если вычисления не завершены)"
+//				"id": "уникальный ID выражения",
+//				"status": "статус выражения (pending, processing, completed, error)",
+//				"result": "результат выражения (может отсутствовать, если вычисления не завершены)",
+//				"error": "ошибка при вычислении (может отсутствовать, если ошибки нет)"
 //	    },
 //	    ...
 //	  ]
@@ -135,7 +136,7 @@ func (h *Handlers) AddExpressionHandler(w http.ResponseWriter, r *http.Request) 
 //
 //	500 Internal Server Error:
 //	{
-//	  "error": "Ошибка при кодировании ответа в JSON."
+//	  "error": "ошибка при кодировании ответа в JSON."
 //	}
 func (h *Handlers) GetExpressionsHandler(w http.ResponseWriter, r *http.Request) {
 	expressionsMap := h.taskManager.GetExpressions()
@@ -160,7 +161,7 @@ func (h *Handlers) GetExpressionsHandler(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "application/json")
 	err := json.NewEncoder(w).Encode(response) // 200
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusInternalServerError, err.Error()) // 500
+		h.writeErrorResponse(w, http.StatusInternalServerError, "ошибка при кодировании ответа в JSON") // 500
 		return
 	}
 
@@ -187,19 +188,20 @@ func (h *Handlers) GetExpressionsHandler(w http.ResponseWriter, r *http.Request)
 //	{
 //	  "expression": {
 //	    "id": "уникальный ID выражения",
-//	    "status": "статус выражения (pending, processing, completed)",
-//	    "result": "результат выражения (может отсутствовать, если вычисления не завершены)"
+//			"status": "статус выражения (pending, processing, completed, error)",
+//			"result": "результат выражения (может отсутствовать, если вычисления не завершены)",
+//			"error": "ошибка при вычислении (может отсутствовать, если ошибки нет)"
 //	  }
 //	}
 //
 //	404 Not Found:
 //	{
-//	  "error": "Выражение не найдено"
+//	  "error": "выражение не найдено"
 //	}
 //
 //	500 Internal Server Error:
 //	{
-//	  "error": "Ошибка при кодировании ответа в JSON"
+//	  "error": "ошибка при кодировании ответа в JSON"
 //	}
 func (h *Handlers) GetExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -229,7 +231,7 @@ func (h *Handlers) GetExpressionHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	logger.Log.Debugf("Выражение %s успешно добавлено", id)
+	logger.Log.Debugf("Выражение %s успешно отправлен", id)
 }
 
 // GetTaskHandler обрабатывает GET-запросы на эндпоинт /internal/task.
@@ -244,18 +246,19 @@ func (h *Handlers) GetExpressionHandler(w http.ResponseWriter, r *http.Request) 
 //
 // Responses:
 //
-//	200 OK:
-//	{
-//	  "task": {
-//	    "id": "уникальный ID задачи",
-//	    "operation": "операция, которую нужно выполнить (+, -, *, /, ^, u-)",
-//	    "args": [], // 2 числа
-//	    "operation_time": "время выполнения задачи",
-//	  }
-//	}
+//	 200 OK:
+//		{
+//		  "task": {
+//		    "id": "уникальный ID задачи",
+//		    "operation": "операция, которую нужно выполнить (+, -, *, /, ^, u-)",
+//		    "args": [], // 2 числа
+//		    "operation_time": "время выполнения задачи",
+//	     	"expression": "ID выражения, составной частью которого является задача"
+//		  }
+//		}
 //
-//	404 Not Found:
-//	(пустой ответ) - Если нет доступных задач для выполнения
+//		404 Not Found:
+//		(пустой ответ) - Если нет доступных задач для выполнения
 func (h *Handlers) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	task, _, ok := h.taskManager.GetTask()
 	if !ok {
@@ -297,10 +300,14 @@ func (h *Handlers) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 //	{
 //	  "tasks": [
 //	    {
-//	    "id": "уникальный ID задачи",
-//	    "operation": "операция, которую нужно выполнить (+, -, *, /, ^, u-)",
-//	    "args": [] (2 числа или nil'ы, если зависит от иногй задачи)"
-//	    "operation_time": "время выполнения задачи",
+//			"id": "уникальный ID задачи",
+//			"operation": "операция, которую нужно выполнить (+, -, *, /, ^, u-)",
+//			"args": "[] (2 числа или nil'ы, если зависит от иногй задачи)",
+//			"operation_time": "время выполнения задачи",
+//			"dependencies": "id задач от которых она зависит",
+//			"status": "статус задачи "pending", "processing", "completed", "error")",
+//			"result": "результат вычисления задачи (nil если еще не выполнена)",
+//			"expression" "ID выражения, составной частью которого является задача""
 //	  	}
 //	    ...
 //	  ]
@@ -308,12 +315,12 @@ func (h *Handlers) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 //
 //	404 OK:
 //	{
-//	    "error": "Задача с указанным ID не существует"
+//	    "error": "выражение не найдено"
 //	}
 //
 //	500 Internal Server Error:
 //	{
-//	  "error": "Ошибка при кодировании ответа в JSON."
+//	  "error": "ошибка при кодировании ответа в JSON"
 //	}
 func (h *Handlers) GetTaskIDHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -322,7 +329,7 @@ func (h *Handlers) GetTaskIDHandler(w http.ResponseWriter, r *http.Request) {
 	taskMap := h.taskManager.GetTasks(id)
 
 	if len(taskMap) == 0 {
-		h.writeErrorResponse(w, http.StatusNotFound, "задача не найдена") // 404
+		h.writeErrorResponse(w, http.StatusNotFound, "выражение не найдено") // 404
 		return
 	}
 
@@ -331,7 +338,7 @@ func (h *Handlers) GetTaskIDHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	err := json.NewEncoder(w).Encode(response)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusInternalServerError, err.Error()) // 500
+		h.writeErrorResponse(w, http.StatusInternalServerError, "ошибка при кодировании ответа в JSON") // 500
 		return
 	}
 
@@ -351,29 +358,34 @@ func (h *Handlers) GetTaskIDHandler(w http.ResponseWriter, r *http.Request) {
 // Request body (JSON):
 //
 //	{
-//		"expression": "ID корневого выражения"
+//		"expression": "ID выражения, частью которого являетя задача"
 //		"id": "ID выполненной задачи",
-//		"result": "результат выполнения задачи (число)"
+//		"result": "результат выполнения задачи (число)",
+//		"error": "ошибка, возикшая при выполнении задачи" (может отсутсвовать)
 //	}
 //
 // Responses:
 //
 //	200 OK:
-//	(пустой ответ) - В случае успешного завершения.
+//		(пустой ответ) - В случае успешного завершения.
 //
-//	400 Bad Request:
-//	{
-//	  "error": "Ошибка при декодировании JSON"
-//	}
+//	422 Unprocessable Entity:
+//		{
+//		  "error": "не удалось декодировать JSON"
+//		}
+//	500 Bad Request:
+//		{
+//			 "error": "не удалось декодировать JSON"
+//		}
 //
 //	404 Not Found:
-//	{
-//	  "error": "Задача не найдена"
-//	}
+//		{
+//		  "error": "задача не найдена"
+//		}
 func (h *Handlers) CompleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "не удалось прочитать тело запроса") // 400
+		h.writeErrorResponse(w, http.StatusUnprocessableEntity, "не удалось прочитать тело запроса") // 422
 		return
 	}
 
@@ -381,13 +393,13 @@ func (h *Handlers) CompleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = json.Unmarshal(body, &requestBody)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "не удалось декодировать JSON") // 400
+		h.writeErrorResponse(w, http.StatusBadRequest, "не удалось декодировать JSON") // 500
 		return
 	}
 
 	success := h.taskManager.CompleteTask(requestBody.Expression, requestBody.ID, requestBody.Error, requestBody.Result)
 	if !success {
-		h.writeErrorResponse(w, http.StatusNotFound, "Задача не найдена") // 404
+		h.writeErrorResponse(w, http.StatusNotFound, "задача не найдена") // 404
 		return
 	}
 

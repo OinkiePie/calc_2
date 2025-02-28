@@ -48,7 +48,25 @@ func NewWorker(workerID int, apiClient *client.APIClient, wg *sync.WaitGroup, er
 	}
 }
 
-// StartWorker запускает вычислителя
+// Start запускает рабочего для выполнения задач, получаемых от API.
+//
+// Args:
+//
+//	ctx: context.Context - Контекст, используемый для отмены работы воркера.
+//
+// Описание:
+//
+//	Воркер постоянно пытается получить задачу от API. Если задача получена,
+//	воркер запускает вычисление в отдельной горутине с таймаутом, указанным
+//	в задаче. Результат вычисления (или ошибка) отправляется обратно в API.
+//	Воркер завершает работу при отмене контекста.
+//
+// Обработка ошибок:
+//   - Если нет задач для выполнения, воркер ждет 2 секунды и повторяет попытку.
+//   - Если не удается получить задачу, воркер ждет 5 секунд и повторяет попытку.
+//   - Если полученная задача невыполнима, в API отправляется сообщение об ошибке.
+//   - Если во время вычисления происходит паника, она перехватывается, логируется и отправляется в канал ошибок.
+//   - Если при отправке результата возникает ошибка, воркер ждет 5 секунд и повторяет попытку.
 func (w *Worker) Start(ctx context.Context) {
 	w.wg.Add(1)
 	defer w.wg.Done()
@@ -62,7 +80,7 @@ func (w *Worker) Start(ctx context.Context) {
 			task, err := w.apiClient.GetTask()
 			if err != nil {
 				logger.Log.Errorf("Рабочий %d: Ошибка при получении задачи: %v", w.workerID, err)
-				time.Sleep(10 * time.Second)
+				time.Sleep(5 * time.Second)
 				continue
 			}
 
@@ -109,6 +127,7 @@ func (w *Worker) Start(ctx context.Context) {
 				logger.Log.Debugf("Рабочий %d: Задача %s невыполнима: %v", w.workerID, task.ID, err)
 				// Перезаписываем поле Error чтобы обработчик понял что выражение невыполнимо
 				task.Error = fmt.Sprintf("IMPOSSIBLE: %v", err)
+				result = 0
 			}
 
 			if math.IsInf(result, 1) {
@@ -132,7 +151,7 @@ func (w *Worker) Start(ctx context.Context) {
 			err = w.apiClient.CompleteTask(completedTask)
 			if err != nil {
 				logger.Log.Errorf("Рабочий %d: Ошибка при отправлении задачи %s: %v", w.workerID, task.ID, err)
-				time.Sleep(10 * time.Second)
+				time.Sleep(5 * time.Second)
 			} else {
 				logger.Log.Debugf("Рабочий %d: Задача %s успешно отправлена", w.workerID, task.ID)
 			}

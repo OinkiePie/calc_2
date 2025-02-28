@@ -166,8 +166,8 @@ func (tm *TaskManager) GetTasks(id string) []models.Task {
 //	bool - true, если задача найдена, иначе false.
 func (tm *TaskManager) GetTask() (models.Task, string, bool) {
 	// Устанавливаем блокировку для чтения, чтобы разрешить параллельное чтение выражений.
-	tm.expressionsMu.RLock()
-	defer tm.expressionsMu.RUnlock()
+	tm.expressionsMu.Lock()
+	defer tm.expressionsMu.Unlock()
 
 	// Объявляем переменные для хранения результатов и синхронизации.
 	var (

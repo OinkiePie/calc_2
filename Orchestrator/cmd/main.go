@@ -76,6 +76,7 @@ func (o *Orchestrator) Stop() {
 	}
 }
 
+// Запуск сервиса оркестратора
 func main() {
 	// Инициализация конфига и логгера
 	initializer.Init()
@@ -85,9 +86,9 @@ func main() {
 	// Запуск сервиса агента в отдельной горутине чтобы можно было поймать завершение
 	orchestratorService := NewOrchestrator(errChan)
 	go func() {
-		logger.Log.Debugf("Запуск веб сервиса...")
+		logger.Log.Debugf("Запуск сервиса Оркестратор...")
 		orchestratorService.Start()
-		logger.Log.Infof("Веб сервис запущен на %s", orchestratorService.Addr)
+		logger.Log.Infof("Cервис Оркестратор запущен на %s", orchestratorService.Addr)
 	}()
 
 	shutdown.WaitForShutdown(errChan, "Orchestrator", orchestratorService)

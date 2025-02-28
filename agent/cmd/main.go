@@ -90,6 +90,7 @@ func (a *Agent) Stop() {
 	}
 }
 
+// Запуск сервиса агента
 func main() {
 	// Инициализация конфига и логгера
 	initializer.Init()
@@ -99,9 +100,9 @@ func main() {
 	// Запуск сервиса агента в отдельной горутине чтобы можно было поймать завершение
 	agentService := NewAgent(errChan)
 	go func() {
-		logger.Log.Debugf("Запуск сервиса агента...")
+		logger.Log.Debugf("Запуск сервиса Агент...")
 		agentService.Start()
-		logger.Log.Infof("Сервис агента запущен")
+		logger.Log.Infof("Сервис Агент запущен")
 	}()
 
 	shutdown.WaitForShutdown(errChan, "Agent", agentService)

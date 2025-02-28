@@ -80,8 +80,8 @@ func DefaultConfig() *Config {
 				COMPUTING_POWER: 4,
 			},
 			Web: WebServiceConfig{
-				Port:      8082,
-				StaticDir: "\\static",
+				Port:      8081,
+				StaticDir: "web/static",
 			},
 		},
 		Math: MathConfig{
@@ -212,7 +212,7 @@ func InitConfig() error {
 		fmt.Println(err.Error())
 	}
 
-	filename := fmt.Sprintf("config/%s.yaml", Name)
+	filename := fmt.Sprintf("config/configs/%s.yml", Name)
 	// Получаем абсолютный путь до файла конфигурации (для запуска из любой директории)
 	absPath, err := filepath.Abs(filename)
 	if err != nil {

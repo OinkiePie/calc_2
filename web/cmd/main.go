@@ -12,6 +12,7 @@ import (
 	"github.com/OinkiePie/calc_2/pkg/logger"
 	"github.com/OinkiePie/calc_2/pkg/shutdown"
 	"github.com/OinkiePie/calc_2/web/internal/router"
+	"github.com/rs/cors"
 )
 
 // Web представляет собой веб-сервис.
@@ -37,15 +38,24 @@ func NewWeb(errChan chan error) *Web {
 
 	if _, err := os.Stat(staticDir); os.IsNotExist(err) {
 		errChan <- fmt.Errorf("директория со статическими файлами не найдена")
+		return nil
 	}
 
 	addr := fmt.Sprintf("localhost:%d", port)
 	router := router.NewWebRouter(staticDir, portOrchestrator)
 
+	c := cors.New(cors.Options{
+		AllowedOrigins:   config.Cfg.Middleware.AllowOrigin,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+	})
+	routerCORS := c.Handler(router)
+
 	// Создаем экземпляр структуры http.Server, указывая адрес и обработчик
 	srv := &http.Server{
 		Addr:    addr,
-		Handler: router,
+		Handler: routerCORS,
 	}
 
 	return &Web{errChan: errChan, server: srv, Addr: addr}
@@ -62,6 +72,7 @@ func (w *Web) Start() {
 			w.errChan <- err
 		}
 	}()
+
 }
 
 // Stop останавливает веб-сервер. Он использует контекст с таймаутом, чтобы
@@ -75,6 +86,7 @@ func (w *Web) Stop() {
 	}
 }
 
+// Запуск веб сервиса
 func main() {
 	// Инициализация конфига и логгера
 	initializer.Init()
@@ -83,11 +95,13 @@ func main() {
 
 	// Запуск сервиса агента в отдельной горутине чтобы можно было поймать завершение
 	webService := NewWeb(errChan)
-	go func() {
-		logger.Log.Debugf("Запуск веб сервиса...")
-		webService.Start()
-		logger.Log.Infof("Веб сервис запущен на %s", webService.Addr)
-	}()
+	if webService != nil {
+		go func() {
+			logger.Log.Debugf("Запуск сервиса Веб...")
+			webService.Start()
+			logger.Log.Infof("Сервис Веб запущен на %s", webService.Addr)
+		}()
+	}
 
 	shutdown.WaitForShutdown(errChan, "Web", webService)
 }

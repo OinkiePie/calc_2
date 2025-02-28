@@ -58,7 +58,7 @@ type Logger struct {
 	log          *log.Logger // Стандартный Go логгер
 	timeFormat   string      // Формат для временных меток
 	callDepth    int         // Глубина вызова для определения файла/строки источника
-	disableCall  bool        // Отключить вывод времени
+	disableCall  bool        // Отключить вывод источника
 	disableTime  bool        // Отключает временные метки в логах
 	disableColor bool        // Отключает цветной вывод
 }
