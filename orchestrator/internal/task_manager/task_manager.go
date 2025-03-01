@@ -161,7 +161,7 @@ func (tm *TaskManager) GetTasks(id string) []models.Task {
 //
 // Returns:
 //
-//	models.Task - Первая задача со статусом "pending". Если таких задач нет, возвращается пустая задача.
+//	models.Task - Первая задача со статусом "pending" (в момент отправки присвоится "processing"). Если таких задач нет, возвращается пустая задача.
 //	string - ID выражения, которому принадлежит найденная задача. Если задача не найдена, возвращается пустая строка.
 //	bool - true, если задача найдена, иначе false.
 func (tm *TaskManager) GetTask() (models.Task, string, bool) {
@@ -213,7 +213,7 @@ func (tm *TaskManager) GetTask() (models.Task, string, bool) {
 						}
 
 						// Проверяем, выполнены ли все зависимости.
-						if tm.areDependenciesCompleted(expr.Tasks, task.Dependencies) {
+						if tm.AreDependenciesCompleted(expr.Tasks, task.Dependencies) {
 							// Все зависимости выполнены, задача готова к выполнению
 							task.Status = "processing"      // Устанавливаем статус "processing"
 							for i, arg := range task.Args { // Если значение nil, то оно находится в зависимостях
@@ -275,7 +275,7 @@ func (tm *TaskManager) GetTask() (models.Task, string, bool) {
 // Returns:
 //
 //	bool - true, если все зависимости выполнены, false в противном случае.
-func (tm *TaskManager) areDependenciesCompleted(tasks []models.Task, dependencies []string) bool {
+func (tm *TaskManager) AreDependenciesCompleted(tasks []models.Task, dependencies []string) bool {
 	for _, dependencyID := range dependencies {
 		if dependencyID == "" {
 			break

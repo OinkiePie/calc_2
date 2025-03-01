@@ -3,11 +3,10 @@ package config
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
-	"path/filepath"
 	"strconv"
 
-	"github.com/OinkiePie/calc_2/pkg/logger"
 	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
 )
@@ -71,7 +70,7 @@ type LoggerConfig struct {
 }
 
 // DefaultConfig возвращает конфигурацию по умолчанию
-func DefaultConfig() *Config {
+func defaultConfig() *Config {
 	return &Config{
 		Server: ServicesConfig{
 			Orchestrator: OrchestratorServiceConfig{
@@ -111,24 +110,24 @@ func DefaultConfig() *Config {
 
 var (
 	// Глобальная переменная для общего использования
-	Name string
-	Cfg  *Config
+	Filename string
+	Cfg      *Config
 )
 
 func loadName() {
 	// Загрузка env переменных из файла .env
 	if err := godotenv.Load(); err != nil {
-		fmt.Println("Файл .env не найден")
+		log.Println("Файл .env не найден")
 	}
 	// Определение типа приложения - prod или dev
-	env := os.Getenv("APP_ENV")
+	env := os.Getenv("APP_CFG")
 
 	if env == "" {
-		fmt.Println("Переменная среды APP_ENV отстутствует или пуста, используется конфигурация по умолчанию")
-		env = "dev" // По умолчанию - разработка
+		log.Println("Переменная среды APP_CFG отстутствует или пуста, используется конфигурация по умолчанию")
+		env = "config/configs/dev.yml" // По умолчанию - разработка
 	}
 
-	Name = env
+	Filename = env
 }
 
 func loadEnv() error {
@@ -226,29 +225,25 @@ func loadEnv() error {
 
 func InitConfig() error {
 	// Создаем конфиг по умолчанию
-	Cfg = DefaultConfig()
+	Cfg = defaultConfig()
 
 	// Ищем название файла конфигурации
 	loadName()
 
-	filename := fmt.Sprintf("config/configs/%s.yml", Name)
-	// Получаем абсолютный путь до файла конфигурации (для запуска из любой директории)
-	absPath, err := filepath.Abs(filename)
-	if err != nil {
-		return fmt.Errorf("ошибка получния абсолютного пути для файла конфигурации %s: %w", filename, err)
-	}
-
 	// Проверка существования файла
-	_, err = os.Stat(absPath)
+	_, err := os.Stat(Filename)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("файл конфигурации %s не найден", filename)
-
+		return fmt.Errorf("файл конфигурации %s не найден", Filename)
 	}
 	// Открываем файл
-	file, err := os.Open(absPath)
+	file, err := os.Open(Filename)
+	// Проверка прав
+	if os.IsPermission(err) {
+		return fmt.Errorf("недостаточно прав чтобы открыть %s", Filename)
+	}
+
 	if err != nil {
 		return fmt.Errorf("не удалось открыть файл конфигурации: %w", err)
-
 	}
 	defer file.Close()
 
@@ -266,9 +261,5 @@ func InitConfig() error {
 
 	// Записываем переменные среды поверх других
 	err = loadEnv()
-	if err != nil {
-		logger.Log.Errorf(err.Error())
-	}
-
-	return nil
+	return err
 }

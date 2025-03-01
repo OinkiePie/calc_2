@@ -109,7 +109,7 @@ func (w *Worker) Start(ctx context.Context) {
 					}
 				}()
 
-				result, err := calculate(t)
+				result, err := Calculate(t)
 				if err != nil {
 					errorChan <- err
 					return
@@ -159,7 +159,19 @@ func (w *Worker) Start(ctx context.Context) {
 	}
 }
 
-func calculate(task *models.TaskResponse) (float64, error) {
+// Calculate выполняет математическую операцию над двумя аргументами, указанными в задаче.
+// Поддерживаемые операции: сложение, вычитание, умножение, деление и возведение в степень.
+// Если второй аргумент равен nil, выполняется унарный минус для первого аргумента.
+//
+// Args:
+//
+//	task: (*models.TaskResponse) - Задача, содержащая аргументы и операцию.
+//
+// Returns:
+//
+//	float64 - Результат выполнения операции.
+//	error - Ошибка, если операция не может быть выполнена (например, деление на ноль или неизвестная операция).
+func Calculate(task *models.TaskResponse) (float64, error) {
 	var arg1, arg2 float64
 
 	// Nil попадает в операндом только если оператором является унарный минус.
@@ -196,5 +208,5 @@ func calculate(task *models.TaskResponse) (float64, error) {
 		return math.Pow(arg1, arg2), nil
 	}
 
-	return 0, fmt.Errorf("unidentified operator: %s", task.Operation)
+	return 0, fmt.Errorf("unknown operator: %s", task.Operation)
 }

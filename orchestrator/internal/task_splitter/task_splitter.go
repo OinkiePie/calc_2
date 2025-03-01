@@ -14,13 +14,13 @@ import (
 )
 
 var (
-	ErrOneOperand        = errors.New("минимум два операра требуются для расчета")
-	ErrUnopenedParen     = errors.New("неоткрытая скобка")
-	ErrUnclosedParen     = errors.New("незакрытая скобка")
-	ErrInvalidSyntax     = errors.New("неверный синтаксис")
-	ErrNotEnoughOperands = errors.New("недостаточно операндов")
-	ErrUnaryMinus        = errors.New("недостаточно операндов для унарного минуса")
-	ErrRPN               = errors.New("не удалось преобразовать RPN")
+	errOneOperand        = errors.New("минимум два операнда требуются для расчета")
+	errUnopenedParen     = errors.New("неоткрытая скобка")
+	errUnclosedParen     = errors.New("незакрытая скобка")
+	errInvalidSyntax     = errors.New("неверный синтаксис")
+	errNotEnoughOperands = errors.New("недостаточно операндов")
+	errUnaryMinus        = errors.New("недостаточно операндов для унарного минуса")
+	errRPN               = errors.New("не удалось преобразовать RPN")
 )
 
 // ParseExpression разбирает математическое выражение, представленное в виде строки, и преобразует его в набор задач для выполнения.
@@ -151,7 +151,7 @@ func infixToRPN(expression string) ([]string, error) {
 			if len(stack) == 0 {
 				// Если в стеке не осталось открывающей скобки, это означает, что у нас была
 				// закрывающая скобка, но не было соответствующей открывающей скобки в выражении
-				return nil, ErrUnopenedParen
+				return nil, errUnopenedParen
 			}
 			stack = stack[:len(stack)-1] // Удаляем открывающую скобку из стека
 		case isOperator(token): // Если оператор
@@ -166,7 +166,7 @@ func infixToRPN(expression string) ([]string, error) {
 			}
 			stack = append(stack, token) // Помещаем текущий оператор в стек
 		default:
-			return nil, ErrInvalidSyntax
+			return nil, errInvalidSyntax
 		}
 	}
 
@@ -174,14 +174,14 @@ func infixToRPN(expression string) ([]string, error) {
 	for len(stack) > 0 {
 		top := stack[len(stack)-1]
 		if top == operators.ParenLeft || top == operators.ParenRight {
-			return nil, ErrUnclosedParen
+			return nil, errUnclosedParen
 		}
 		output = append(output, stack[len(stack)-1])
 		stack = stack[:len(stack)-1]
 	}
 
 	if len(output) == 1 {
-		return nil, ErrOneOperand
+		return nil, errOneOperand
 	}
 
 	return output, nil
@@ -201,24 +201,29 @@ func tokenize(expression string) []string {
 	var tokens []string
 	var currentNumber string
 
-	for _, r := range expression {
+	for i, r := range expression {
 		s := string(r)
-		if unicode.IsDigit(r) || s == operators.Point {
+		// Если символ является цифрой, точкой или знаком "+" в начале числа
+		if unicode.IsDigit(r) || s == operators.Point || (s == "+" && (i == 0 || isOperator(string(expression[i-1])) || expression[i-1] == '(')) {
 			currentNumber += s
 		} else {
+			// Если накопилось число, добавляем его в токены
 			if currentNumber != "" {
 				tokens = append(tokens, currentNumber)
 				currentNumber = ""
 			}
+			// Добавляем текущий символ (оператор или скобку) в токены
 			if s != "" {
 				tokens = append(tokens, s)
 			}
 		}
 	}
 
+	// Если осталось число, добавляем его в токены
 	if currentNumber != "" {
 		tokens = append(tokens, currentNumber)
 	}
+
 	return tokens
 }
 
@@ -282,7 +287,7 @@ func rpnToTasks(expression string, rpn []string) ([]models.Task, error) {
 		switch token {
 		case operators.OpAdd, operators.OpSubtract, operators.OpMultiply, operators.OpDivide, operators.OpPower:
 			if len(stack) < 2 {
-				return nil, ErrNotEnoughOperands
+				return nil, errNotEnoughOperands
 			}
 
 			operand2Str := stack[len(stack)-1]
@@ -322,7 +327,7 @@ func rpnToTasks(expression string, rpn []string) ([]models.Task, error) {
 			// Унарный минус
 			// Если унарный минус не может быть один
 			if len(stack) < 1 {
-				return nil, ErrUnaryMinus
+				return nil, errUnaryMinus
 			}
 			operandStr := stack[len(stack)-1]
 			stack = stack[:len(stack)-1]
@@ -353,14 +358,14 @@ func rpnToTasks(expression string, rpn []string) ([]models.Task, error) {
 				// В результате всех прошлых операций и проверок можно сделать вывод, что
 				// суда ничего не может попасть (не может быть инородным символом или оператором
 				// в результате проверки в infixToRPN и прошлых case соответственно).
-				return nil, ErrRPN
+				return nil, errRPN
 			}
 			stack = append(stack, token) // Просто добавляем число в стек
 		}
 	}
 
 	if len(stack) != 1 {
-		return nil, ErrRPN
+		return nil, errRPN
 	}
 
 	// Все задачи созданы.

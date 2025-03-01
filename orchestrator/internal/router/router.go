@@ -22,7 +22,7 @@ func NewOrchestratorRouter() *mux.Router {
 	taskManager := task_manager.NewTaskManager()
 	handler := handlers.NewOrchestratorHandlers(taskManager)
 
-	middleware := middlewares.NewOrchestratorMiddlewares(config.Cfg.Middleware.ApiKeyPrefix, config.Cfg.Middleware.Authorization, config.DefaultConfig().Middleware.AllowOrigin)
+	middleware := middlewares.NewOrchestratorMiddlewares(config.Cfg.Middleware.ApiKeyPrefix, config.Cfg.Middleware.Authorization, config.Cfg.Middleware.AllowOrigin)
 
 	router := mux.NewRouter()
 

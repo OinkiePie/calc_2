@@ -89,14 +89,14 @@ func (m *Middleware) EnableAuthorization(next http.Handler) http.Handler {
 
 		// Проверяем, что заголовок Authorization присутствует.
 		if authHeader == "" {
-			logger.Log.Debugf("Отсутствует заголовок авторизации")
+			logger.Log.Debugf("Отсутствует заголовок Authorization")
 			http.Error(w, "Unauthorized: Missing authorization header", http.StatusUnauthorized) // 401
 			return
 		}
 
 		// Проверяем, что заголовок начинается с префикса (например, "Bearer ").
 		if !strings.HasPrefix(authHeader, m.apiKeyPrefix) {
-			logger.Log.Debugf("Неверный формат заголовка авторизации")
+			logger.Log.Debugf("Неверный формат заголовка Authorization")
 			http.Error(w, "Unauthorized: Invalid authorization header format", http.StatusUnauthorized) // 401
 			return
 		}
@@ -114,7 +114,7 @@ func (m *Middleware) EnableAuthorization(next http.Handler) http.Handler {
 		// Сравниваем полученный API-ключ с ожидаемым.
 		if apiKey != m.authorization {
 			logger.Log.Debugf("Неверный API-ключ: %s", apiKey)
-			http.Error(w, "Unauthorized: Invalid API key", http.StatusForbidden) // 403
+			http.Error(w, "Unauthorized: Invalid API key", http.StatusUnauthorized) // 401
 			return
 		}
 

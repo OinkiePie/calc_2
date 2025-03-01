@@ -9,8 +9,8 @@ import (
 // Handlers представляет структуру, содержащую методы-обработчики для веб-запросов.
 // Хранит путь к директории со статическими файлами.
 type Handlers struct {
-	staticDir string
-	port      int
+	staticDir        string
+	portOrchestrator int
 }
 
 // NewWebHandlers создает новый экземпляр структуры Handlers и инициализирует поле StaticDir.
@@ -23,16 +23,21 @@ type Handlers struct {
 //
 //	*Handlers - Указатель на созданный экземпляр структуры Handlers.
 func NewWebHandlers(static string, port int) *Handlers {
-	return &Handlers{staticDir: static, port: port}
+	return &Handlers{staticDir: static, portOrchestrator: port}
 }
 
-// IndexHandler обрабатывает запросы к корневому пути ("/") и возвращает файл index.html.
+// IndexHandler обрабатывает запросы к корневому пути и всем осталльным
+// путям, не уазанным ранее, и возвращает файл index.html.
 //
 // Args:
 //
 //	w: http.ResponseWriter - интерфейс для записи HTTP-ответа.
 //	r: *http.Request - указатель на структуру, представляющую HTTP-запрос.
 func (h *Handlers) IndexHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" { // Если путь не корневой, делаем редирект на корневую страницу
+		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+		return
+	}
 	indexFilePath := filepath.Join(h.staticDir, "index.html") // Полный путь к index.html
 	http.ServeFile(w, r, indexFilePath)
 }
@@ -78,5 +83,5 @@ func (h *Handlers) FaviconHandler(w http.ResponseWriter, r *http.Request) {
 //	r: *http.Request - указатель на структуру, представляющую HTTP-запрос.
 func (h *Handlers) ApiHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
-	fmt.Fprintln(w, h.port)
+	fmt.Fprintln(w, h.portOrchestrator)
 }

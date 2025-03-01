@@ -44,38 +44,60 @@ func NewOrchestratorHandlers(tm *task_manager.TaskManager) *Handlers {
 // Request body (JSON):
 //
 //	{
-//	  "expression": "строка с математическим выражением"
+//		"expression": "строка с математическим выражением"
 //	}
 //
 // Responses:
 //
 //	201 Created:
 //	{
-//	  "id": "уникальный ID созданного выражения"
+//		"id": "уникальный ID созданного выражения"
+//	}
+//
+//	400 Bad Request:
+//	{
+//		"error": "выражения обязательно"
+//	}
+//
+//	{
+//		"error": "пустое тело запроса"
+//	}
+//
+//	405 Method Not Allowed:
+//	{
+//		"error": "метод не поддерживается"
 //	}
 //
 //	422 Unprocessable Entity:
 //	{
-//	  "error": "не удалось прочитать запрос"
+//		"error": "не удалось декодировать JSON"
 //	}
 //
 //	{
-//	  "error": "не удалось декодировать JSON"
+//		"error": "Содержание ошибки при добавлении выражения в TaskManager"
 //	}
 //
+//	500 Internal Server Error:
 //	{
-//	  "error": "выражения обязательно"
+//		"error": "не удалось прочитать запрос"
 //	}
-//
-// 500 Internal Server Error:
-//
 //	{
-//	  "error": "Содержание ошибки при добавлении выражения в TaskManager"
+//		"error": "ошибка при кодировании ответа в JSON."
 //	}
 func (h *Handlers) AddExpressionHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "метод не поддерживается")
+		return
+	}
+
+	if r.Body == nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, "пустое тело запроса") // 400
+		return
+	}
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusUnprocessableEntity, "не удалось прочитать запрос") //422
+		h.writeErrorResponse(w, http.StatusInternalServerError, "не удалось прочитать запрос") //500
 		return
 	}
 
@@ -91,20 +113,24 @@ func (h *Handlers) AddExpressionHandler(w http.ResponseWriter, r *http.Request) 
 	// *разбиватель на задачи* чтобы не делать это повторно
 	trimmedBody := strings.TrimSpace(requestBody.Expression)
 	if trimmedBody == "" {
-		h.writeErrorResponse(w, http.StatusUnprocessableEntity, "выражения обязательно") //422
+		h.writeErrorResponse(w, http.StatusBadRequest, "выражения обязательно") //400
 		return
 	}
 
 	id, err := h.taskManager.AddExpression(trimmedBody)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusInternalServerError, err.Error()) //500
+		h.writeErrorResponse(w, http.StatusUnprocessableEntity, err.Error()) //422
 		return
 	}
 
 	response := map[string]string{"id": id}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated) // 201
-	json.NewEncoder(w).Encode(response)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		h.writeErrorResponse(w, http.StatusInternalServerError, "ошибка при кодировании ответа в JSON") // 500
+		return
+	}
 
 	logger.Log.Debugf("Выражение %s успешно создано", id)
 }
@@ -134,11 +160,21 @@ func (h *Handlers) AddExpressionHandler(w http.ResponseWriter, r *http.Request) 
 //	  ]
 //	}
 //
+//	405 Method Not Allowed:
+//	{
+//		"error": "метод не поддерживается"
+//	}
+//
 //	500 Internal Server Error:
 //	{
-//	  "error": "ошибка при кодировании ответа в JSON."
+//		"error": "ошибка при кодировании ответа в JSON."
 //	}
 func (h *Handlers) GetExpressionsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "метод не поддерживается")
+		return
+	}
+
 	expressionsMap := h.taskManager.GetExpressions()
 
 	// Создаем слайс ExpressionResponse
@@ -186,12 +222,12 @@ func (h *Handlers) GetExpressionsHandler(w http.ResponseWriter, r *http.Request)
 //
 //	200 OK:
 //	{
-//	  "expression": {
-//	    "id": "уникальный ID выражения",
+//		"expression": {
+//			"id": "уникальный ID выражения",
 //			"status": "статус выражения (pending, processing, completed, error)",
 //			"result": "результат выражения (может отсутствовать, если вычисления не завершены)",
 //			"error": "ошибка при вычислении (может отсутствовать, если ошибки нет)"
-//	  }
+//		}
 //	}
 //
 //	404 Not Found:
@@ -199,11 +235,21 @@ func (h *Handlers) GetExpressionsHandler(w http.ResponseWriter, r *http.Request)
 //	  "error": "выражение не найдено"
 //	}
 //
+//	405 Method Not Allowed:
+//	{
+//		"error": "метод не поддерживается"
+//	}
+//
 //	500 Internal Server Error:
 //	{
 //	  "error": "ошибка при кодировании ответа в JSON"
 //	}
 func (h *Handlers) GetExpressionHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "метод не поддерживается")
+		return
+	}
+
 	vars := mux.Vars(r)
 	id := vars["id"]
 
@@ -246,20 +292,28 @@ func (h *Handlers) GetExpressionHandler(w http.ResponseWriter, r *http.Request) 
 //
 // Responses:
 //
-//	 200 OK:
-//		{
-//		  "task": {
-//		    "id": "уникальный ID задачи",
-//		    "operation": "операция, которую нужно выполнить (+, -, *, /, ^, u-)",
-//		    "args": [], // 2 числа
-//		    "operation_time": "время выполнения задачи",
-//	     	"expression": "ID выражения, составной частью которого является задача"
-//		  }
-//		}
+//	200 OK:
+//	{
+//		"id": "уникальный ID задачи",
+//		"operation": "операция, которую нужно выполнить (+, -, *, /, ^, u-)",
+//		"args": [], // 2 числа
+//		"operation_time": "время выполнения задачи",
+//		"expression": "ID выражения, составной частью которого является задача"
+//	}
 //
-//		404 Not Found:
+//	404 Not Found:
 //		(пустой ответ) - Если нет доступных задач для выполнения
+//
+//	405 Method Not Allowed:
+//	{
+//		"error": "метод не поддерживается"
+//	}
 func (h *Handlers) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "метод не поддерживается")
+		return
+	}
+
 	task, _, ok := h.taskManager.GetTask()
 	if !ok {
 		w.WriteHeader(http.StatusNotFound) // 404
@@ -307,22 +361,32 @@ func (h *Handlers) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 //			"dependencies": "id задач от которых она зависит",
 //			"status": "статус задачи "pending", "processing", "completed", "error")",
 //			"result": "результат вычисления задачи (nil если еще не выполнена)",
-//			"expression" "ID выражения, составной частью которого является задача""
-//	  	}
-//	    ...
-//	  ]
+//			"expression" "ID выражения, составной частью которого является задача"
+//			}
+//			...
+//		]
 //	}
 //
 //	404 OK:
 //	{
-//	    "error": "выражение не найдено"
+//	 	"error": "выражение не найдено"
+//	}
+//
+//	405 Method Not Allowed:
+//	{
+//		"error": "метод не поддерживается"
 //	}
 //
 //	500 Internal Server Error:
 //	{
-//	  "error": "ошибка при кодировании ответа в JSON"
+//		"error": "ошибка при кодировании ответа в JSON"
 //	}
 func (h *Handlers) GetTaskIDHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "метод не поддерживается")
+		return
+	}
+
 	vars := mux.Vars(r)
 	id := vars["id"]
 
@@ -367,25 +431,48 @@ func (h *Handlers) GetTaskIDHandler(w http.ResponseWriter, r *http.Request) {
 // Responses:
 //
 //	200 OK:
-//		(пустой ответ) - В случае успешного завершения.
+//	(пустой ответ) - В случае успешного завершения.
 //
-//	422 Unprocessable Entity:
-//		{
-//		  "error": "не удалось декодировать JSON"
-//		}
-//	500 Bad Request:
-//		{
-//			 "error": "не удалось декодировать JSON"
-//		}
+//
+//	400 Bad Request:
+//	{
+//		"error": "пустое тело запроса"
+//	}
 //
 //	404 Not Found:
-//		{
-//		  "error": "задача не найдена"
-//		}
+//	{
+//		"error": "задача не найдена"
+//	}
+//
+//	405 Method Not Allowed:
+//	{
+//		"error": "метод не поддерживается"
+//	}
+//
+//	422 Unprocessable Entity:
+//	{
+//		"error": "не удалось декодировать JSON"
+//	}
+//
+//	500 Internal Server Error:
+//	{
+//		"error": "не удалось прочитать тело запроса"
+//	}
 func (h *Handlers) CompleteTaskHandler(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != http.MethodPost {
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "метод не поддерживается") // 405
+		return
+	}
+
+	if r.Body == nil {
+		h.writeErrorResponse(w, http.StatusBadRequest, "пустое тело запроса") // 400
+		return
+	}
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusUnprocessableEntity, "не удалось прочитать тело запроса") // 422
+		h.writeErrorResponse(w, http.StatusInternalServerError, "не удалось прочитать тело запроса") // 500
 		return
 	}
 
@@ -393,7 +480,7 @@ func (h *Handlers) CompleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = json.Unmarshal(body, &requestBody)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "не удалось декодировать JSON") // 500
+		h.writeErrorResponse(w, http.StatusUnprocessableEntity, "не удалось декодировать JSON") // 422
 		return
 	}
 

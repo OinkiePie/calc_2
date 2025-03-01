@@ -36,7 +36,7 @@ func WaitForShutdown(errChan <-chan error, serviceName string, service Shutdowna
 		logger.Log.Debugf("Получен сигнал завершения для %s, начинаем остановку...", serviceName)
 	}
 
-	// GracefulShutdown выполняет корректное завершение работы сервиса.
+	// Корректное завершение работы сервиса.
 	logger.Log.Infof("Остановка сервиса %s", serviceName)
 
 	service.Stop()

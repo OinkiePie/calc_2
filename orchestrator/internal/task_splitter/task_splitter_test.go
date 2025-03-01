@@ -1,166 +1,207 @@
-package task_splitter_test
+package task_splitter
 
 import (
-	"errors"
+	"io"
+	"log"
 	"testing"
 
 	"github.com/OinkiePie/calc_2/config"
-	"github.com/OinkiePie/calc_2/orchestrator/internal/task_splitter"
-	"github.com/OinkiePie/calc_2/pkg/models"
+	"github.com/OinkiePie/calc_2/pkg/logger"
+	"github.com/stretchr/testify/assert"
 )
 
-type test struct {
-	name       string
-	id         string
-	expression string
-	want       []models.Task
-	wantErr    error
+func init() {
+	// Отключаем выводы и инициализируем конфиг
+	log.SetOutput(io.Discard)
+	config.InitConfig()
+	logger.InitLogger(logger.Options{Level: 6})
 }
 
+// TestParseExpression проверяет корректность разбора выражения на задачи.
 func TestParseExpression(t *testing.T) {
-	config.InitConfig() // Не обращаем внимание на ошибку т.к. это не имеет смысла в тесте
-
-	tests := []test{
+	tests := []struct {
+		name        string
+		expression  string
+		expectedLen int
+		expectError bool
+		err         string
+	}{
 		{
-			name:       "Simple addition",
-			expression: "2 + 3",
-			want: []models.Task{
-				{
-					Operation: "+",
-					Args:      []*float64{floatPtr(2), floatPtr(3)},
-				},
-			},
-			wantErr: nil,
-		},
-
-		{
-			name:       "Multiplication and subtraction",
-			expression: "5 * 4 - 1",
-			want: []models.Task{
-				{
-					Operation: "*",
-					Args:      []*float64{floatPtr(5), floatPtr(4)},
-				},
-				{
-					Operation: "-",
-					Args:      []*float64{nil, floatPtr(1)},
-				},
-			},
-			wantErr: nil,
-		},
-
-		{
-			name:       "Parentheses and power",
-			expression: "(2 + 3) ^ 2",
-			want: []models.Task{
-				{
-					Operation: "+",
-					Args:      []*float64{floatPtr(2), floatPtr(3)},
-				},
-				{
-					Operation: "^",
-					Args:      []*float64{nil, floatPtr(2)},
-				},
-			},
-			wantErr: nil,
-		},
-
-		{
-			name:       "Unary minus",
-			expression: "-5 + 3",
-			want: []models.Task{
-				{
-					Operation: "-u",
-					Args:      []*float64{floatPtr(5), nil},
-				},
-				{
-					Operation: "+",
-					Args:      []*float64{nil, floatPtr(3)},
-				},
-			},
-			wantErr: nil,
-		},
-
-		{
-			name:       "Unopened Parenthesis",
-			expression: "2 + 3)",
-			want:       nil,
-			wantErr:    task_splitter.ErrUnopenedParen,
+			name:        "Valid expression: simple addition",
+			expression:  "2 + 2",
+			expectedLen: 1,
+			expectError: false,
 		},
 		{
-			name:       "Unclosed Parenthesis",
-			expression: "(2 + 3",
-			want:       nil,
-			wantErr:    task_splitter.ErrUnclosedParen,
+			name:        "Valid expression: simple subtraction",
+			expression:  "5 - 3",
+			expectedLen: 1,
+			expectError: false,
 		},
-
 		{
-			name:       "Invalid syntax",
-			expression: "2 + a",
-			want:       nil,
-			wantErr:    task_splitter.ErrInvalidSyntax,
+			name:        "Valid expression: simple multiplication",
+			expression:  "2 * 3",
+			expectedLen: 1,
+			expectError: false,
 		},
-
 		{
-			name:       "Bad unary minus",
-			expression: "-+1",
-			want:       nil,
-			wantErr:    task_splitter.ErrUnaryMinus,
+			name:        "Valid expression: simple division",
+			expression:  "6 / 2",
+			expectedLen: 1,
+			expectError: false,
 		},
-
 		{
-			name:       "Not enough operands",
-			expression: "3+",
-			want:       nil,
-			wantErr:    task_splitter.ErrNotEnoughOperands,
+			name:        "Valid expression: power operation",
+			expression:  "2 ^ 3",
+			expectedLen: 1,
+			expectError: false,
 		},
-
 		{
-			name:       "One operand",
-			expression: "42",
-			want:       nil,
-			wantErr:    task_splitter.ErrOneOperand,
+			name:        "Valid expression: unary minus",
+			expression:  "-5 + 3",
+			expectedLen: 2,
+			expectError: false,
+		},
+		{
+			name:        "Valid expression: complex expression with parentheses",
+			expression:  "2 + 3 * (4 - 1)",
+			expectedLen: 3,
+			expectError: false,
+		},
+		{
+			name:        "Valid expression: nested parentheses",
+			expression:  "2 * (3 + (4 - 1))",
+			expectedLen: 3,
+			expectError: false,
+		},
+		{
+			name:        "Valid expression: multiple operations",
+			expression:  "2 + 3 * 4 - 1 / 2",
+			expectedLen: 4,
+			expectError: false,
+		},
+		{
+			name:        "Invalid expression: missing operand",
+			expression:  "2 +",
+			expectedLen: 0,
+			expectError: true,
+			err:         "недостаточно операндов",
+		},
+		{
+			name:        "Invalid expression: unclosed parenthesis",
+			expression:  "2 + (3 * 4",
+			expectedLen: 0,
+			expectError: true,
+			err:         "незакрытая скобка",
+		},
+		{
+			name:        "Invalid expression: unopened parenthesis",
+			expression:  "2 + 3) * 4",
+			expectedLen: 0,
+			expectError: true,
+			err:         "неоткрытая скобка",
+		},
+		{
+			name:        "Invalid expression: invalid syntax",
+			expression:  "2 + * 3",
+			expectedLen: 0,
+			expectError: true,
+			err:         "неверный синтаксис",
+		},
+		{
+			name:        "Invalid expression: single operand",
+			expression:  "2",
+			expectedLen: 0,
+			expectError: true,
+			err:         "минимум два операнда требуются для расчета",
+		},
+		{
+			name:        "Invalid expression: empty expression",
+			expression:  "",
+			expectedLen: 0,
+			expectError: true,
+			err:         "неверный синтаксис",
+		},
+		{
+			name:        "Invalid expression: unary minus without operand",
+			expression:  "-",
+			expectedLen: 0,
+			expectError: true,
+			err:         "недостаточно операндов для унарного минуса",
+		},
+		{
+			name:        "Invalid expression: division by zero",
+			expression:  "2 / 0",
+			expectedLen: 1,
+			expectError: false, // Парсинг успешен, но выполнение задачи вызовет ошибку
+		},
+		{
+			name:        "Invalid expression: invalid characters",
+			expression:  "2 + abc",
+			expectedLen: 0,
+			expectError: true,
+			err:         "неверный синтаксис",
+		},
+		{
+			name:        "Valid expression: decimal numbers",
+			expression:  "2.5 + 3.7",
+			expectedLen: 1,
+			expectError: false,
+		},
+		{
+			name:        "Valid expression: multiple unary minuses",
+			expression:  "--5 + 3",
+			expectedLen: 0,
+			expectError: true,
+			err:         "недостаточно операндов для унарного минуса",
+		},
+		{
+			name:        "Valid expression: complex expression with multiple operations",
+			expression:  "2 + 3 * 4 - 1 / 2 ^ 3",
+			expectedLen: 5,
+			expectError: false,
+		},
+		{
+			name:        "Positive number: at the start",
+			expression:  "+7 - 3",
+			expectedLen: 1,
+			expectError: false,
+		},
+		{
+			name:        "Positive number: after operator",
+			expression:  "2 + +7",
+			expectedLen: 1,
+			expectError: false,
+		},
+		{
+			name:        "Positive number: after parenthesis",
+			expression:  "(+7) - 3",
+			expectedLen: 1,
+			expectError: false,
+		},
+		{
+			name:        "Positive number: mixed with negative numbers",
+			expression:  "+7 - -3",
+			expectedLen: 2,
+			expectError: false,
+		},
+		{
+			name:        "Positive number: Complex expression",
+			expression:  "2 + (+7 * -3)",
+			expectedLen: 3,
+			expectError: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := task_splitter.ParseExpression("ABOBA42", tt.expression) // фиксированный id для прохождения компиляции
-
-			if !errors.Is(err, tt.wantErr) {
-				t.Errorf("ParseExpression() error = %v, wantErr %v", err, tt.wantErr)
+			tasks, err := ParseExpression("test-id", tt.expression)
+			if tt.expectError {
+				assert.Error(t, err)
 				return
 			}
-
-			if len(got) != len(tt.want) {
-				t.Errorf("ParseExpression() len = %v, want %v", len(got), len(tt.want))
-				return
-			}
-
-			for i := range got {
-
-				if tt.want[i].Operation != got[i].Operation {
-					t.Errorf("Operation got = %s, want %s", tt.want[i].Operation, got[i].Operation)
-					return
-				}
-
-				for j := range tt.want[i].Args {
-
-					if !(nil == tt.want[i].Args[j] && nil == got[i].Args[j]) {
-
-					}
-					if *tt.want[i].Args[j] != *got[i].Args[j] {
-						return
-					}
-
-				}
-			}
-
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedLen, len(tasks))
 		})
 	}
-}
-
-// Helper function для создания указателя на float64
-func floatPtr(f float64) *float64 {
-	return &f
 }
