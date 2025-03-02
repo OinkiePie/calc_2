@@ -28,7 +28,7 @@ type ServicesConfig struct {
 
 // OrchestratorServiceConfig структура параметров оркестратора
 type OrchestratorServiceConfig struct {
-	Port int `yaml:"port"`
+	Addr string `yaml:"addr"`
 }
 
 // AgentServiceConfig структура параметров агента
@@ -38,7 +38,7 @@ type AgentServiceConfig struct {
 
 // WebServiceConfig структура параметров веб сервиса
 type WebServiceConfig struct {
-	Port      int    `yaml:"port"`
+	Addr      string `yaml:"addr"`
 	StaticDir string `yaml:"static"`
 }
 
@@ -74,13 +74,13 @@ func defaultConfig() *Config {
 	return &Config{
 		Server: ServicesConfig{
 			Orchestrator: OrchestratorServiceConfig{
-				Port: 8080,
+				Addr: "localhost:8080",
 			},
 			Agent: AgentServiceConfig{
 				COMPUTING_POWER: 4,
 			},
 			Web: WebServiceConfig{
-				Port:      8081,
+				Addr:      "localhost:8081",
 				StaticDir: "web/static",
 			},
 		},
@@ -125,30 +125,28 @@ func loadName() {
 	if env == "" {
 		log.Println("Переменная среды APP_CFG отстутствует или пуста, используется конфигурация по умолчанию")
 		env = "config/configs/dev.yml" // По умолчанию - разработка
+	} else if env == "CFG_FALSE" {
+		log.Println(`Переменная среды APP_CFG равна "CFG_FALSE". Файл конфигурации отключен.`)
+		Filename = ""
+		return
 	}
 
 	Filename = env
+
 }
 
 func loadEnv() error {
-	// PORT_ORCHESTRATOR
-	portOrchestratorStr := os.Getenv("PORT_ORCHESTRATOR")
-	if portOrchestratorStr != "" {
-		portOrchestrator, err := strconv.Atoi(portOrchestratorStr)
-		if err != nil {
-			return fmt.Errorf("ошибка преобразования PORT_ORCHESTRATOR в int: %w", err)
-		}
-		Cfg.Server.Orchestrator.Port = portOrchestrator
+	// ADDR_ORCHESTRATOR
+	addrOrchestrator := os.Getenv("ADDR_ORCHESTRATOR")
+	if addrOrchestrator != "" {
+
+		Cfg.Server.Orchestrator.Addr = addrOrchestrator
 	}
 
-	// PORT_WEB
-	portWebStr := os.Getenv("PORT_WEB")
-	if portWebStr != "" {
-		portWeb, err := strconv.Atoi(portWebStr)
-		if err != nil {
-			return fmt.Errorf("ошибка преобразования PORT_WEB в int: %w", err)
-		}
-		Cfg.Server.Web.Port = portWeb
+	// ADDR_WEB
+	addrWeb := os.Getenv("ADDR_WEB")
+	if addrWeb != "" {
+		Cfg.Server.Web.Addr = addrWeb
 	}
 
 	// COMPUTING_POWER
@@ -230,36 +228,38 @@ func InitConfig() error {
 	// Ищем название файла конфигурации
 	loadName()
 
-	// Проверка существования файла
-	_, err := os.Stat(Filename)
-	if os.IsNotExist(err) {
-		return fmt.Errorf("файл конфигурации %s не найден", Filename)
-	}
-	// Открываем файл
-	file, err := os.Open(Filename)
-	// Проверка прав
-	if os.IsPermission(err) {
-		return fmt.Errorf("недостаточно прав чтобы открыть %s", Filename)
-	}
+	if Filename != "" {
+		// Проверка существования файла
+		_, err := os.Stat(Filename)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("файл конфигурации %s не найден", Filename)
+		}
+		// Открываем файл
+		file, err := os.Open(Filename)
+		// Проверка прав
+		if os.IsPermission(err) {
+			return fmt.Errorf("недостаточно прав чтобы открыть %s", Filename)
+		}
 
-	if err != nil {
-		return fmt.Errorf("не удалось открыть файл конфигурации: %w", err)
-	}
-	defer file.Close()
+		if err != nil {
+			return fmt.Errorf("не удалось открыть файл конфигурации: %w", err)
+		}
+		defer file.Close()
 
-	// Декодируем YAML файл в структуру
-	decoder := yaml.NewDecoder(file)
-	if err := decoder.Decode(Cfg); err != nil {
-		if err == io.EOF {
-			return fmt.Errorf("файл конфигурации пуст")
+		// Декодируем YAML файл в структуру
+		decoder := yaml.NewDecoder(file)
+		if err := decoder.Decode(Cfg); err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("файл конфигурации пуст")
 
-		} else {
-			return fmt.Errorf("не удалось декодировать YAML конфигурацию: %w", err)
+			} else {
+				return fmt.Errorf("не удалось декодировать YAML конфигурацию: %w", err)
 
+			}
 		}
 	}
 
 	// Записываем переменные среды поверх других
-	err = loadEnv()
+	err := loadEnv()
 	return err
 }

@@ -26,6 +26,7 @@ func NewOrchestratorRouter() *mux.Router {
 
 	router := mux.NewRouter()
 
+	router.Use(middleware.EnableCORS)
 	// API endpoints (внешние конечные точки, доступные клиентам)
 	router.HandleFunc("/api/v1/calculate", handler.AddExpressionHandler).Methods("POST")
 	router.HandleFunc("/api/v1/expressions", handler.GetExpressionsHandler).Methods("GET")

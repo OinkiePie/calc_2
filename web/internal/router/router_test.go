@@ -48,7 +48,7 @@ func createTempFiles(t *testing.T) string {
 func TestWebRouter(t *testing.T) {
 	// Создаем роутер
 
-	router := router.NewWebRouter(createTempFiles(t), 8080)
+	router := router.NewWebRouter(createTempFiles(t), "localhost:8080")
 	// Тест для /favicon.ico
 	t.Run("FaviconHandler", func(t *testing.T) {
 

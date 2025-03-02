@@ -32,8 +32,8 @@ type Web struct {
 //
 //	*Web - Указатель на новый экземпляр структуры Web.
 func NewWeb(errChan chan error) *Web {
-	port := config.Cfg.Server.Web.Port
-	portOrchestrator := config.Cfg.Server.Orchestrator.Port
+	addr := config.Cfg.Server.Web.Addr
+	portOrchestrator := config.Cfg.Server.Orchestrator.Addr
 	staticDir := config.Cfg.Server.Web.StaticDir
 
 	if _, err := os.Stat(staticDir); os.IsNotExist(err) {
@@ -41,7 +41,6 @@ func NewWeb(errChan chan error) *Web {
 		return nil
 	}
 
-	addr := fmt.Sprintf("localhost:%d", port)
 	router := router.NewWebRouter(staticDir, portOrchestrator)
 
 	c := cors.New(cors.Options{

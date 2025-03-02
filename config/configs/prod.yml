@@ -1,10 +1,10 @@
 server:
   orchestrator:
-    port: 8080
+    port: '0.0.0.0:8080'
   agent:
     COMPUTING_POWER: 4
   web:
-    port: 8081
+    port: '0.0.0.0:8081'
     static: 'web/static'
 
 math:

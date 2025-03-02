@@ -23,7 +23,7 @@ func init() {
 // Создаем фальшивые директории и удаляем только если они не существовали ранее
 // чтобы случайно не уничтожить важные файлы.
 // В реальном случае запуска отсутствие директории с конфигом по умолчанию
-// не вызовет проблем т.к. инициализатор лоавит и обрабатывает ошибки
+// не вызовет проблем т.к. инициализатор лоавит и обрабатывает ошибки.
 func InFakeDevDir(t assert.TestingT, function func() error) error {
 
 	_, err := os.Stat("config")
@@ -111,7 +111,7 @@ func TestConfig_Yml(t *testing.T) {
 	yamlContent := `
 server:
   orchestrator:
-    port: 8080
+    addr: "newadres:1338"
 math:
   TIME_ADDITION_MS: 50
   TIME_SUBTRACTION_MS: 100
@@ -120,13 +120,14 @@ logger:
 `
 
 	err = CreateAndWrite(path, yamlContent)
-	assert.Error(t, err)
+	assert.NoError(t, err)
 
 	err = config.InitConfig()
 	assert.NoError(t, err)
 
-	assert.Equal(t, 8080, config.Cfg.Server.Orchestrator.Port)
+	assert.Equal(t, "newadres:1338", config.Cfg.Server.Orchestrator.Addr)
 	assert.Equal(t, 50, config.Cfg.Math.TIME_ADDITION_MS)
+	assert.Equal(t, 100, config.Cfg.Math.TIME_SUBTRACTION_MS)
 	assert.Equal(t, 1, config.Cfg.Logger.Level)
 }
 
@@ -169,15 +170,19 @@ func TestConfig_BadYml(t *testing.T) {
 func TestConfig_Env(t *testing.T) {
 	err := os.Setenv("APP_CFG", "")
 	assert.NoError(t, err)
-	err = os.Setenv("PORT_ORCHESTRATOR", "8080")
+	err = os.Setenv("ADDR_ORCHESTRATOR", "newadres:1337")
 	assert.NoError(t, err)
 	err = os.Setenv("TIME_ADDITION_MS", "100")
 	assert.NoError(t, err)
 
-	err = InFakeDevDir(t, config.InitConfig)
+	// Отключаем конфиг
+	err = os.Setenv("APP_CFG", "CFG_FALSE")
 	assert.NoError(t, err)
 
-	assert.Equal(t, 8080, config.Cfg.Server.Orchestrator.Port)
+	err = config.InitConfig()
+	assert.NoError(t, err)
+
+	assert.Equal(t, "newadres:1337", config.Cfg.Server.Orchestrator.Addr)
 	assert.Equal(t, 100, config.Cfg.Math.TIME_ADDITION_MS)
 }
 
@@ -185,14 +190,7 @@ func TestConfig_NoEnvCfg(t *testing.T) {
 	err := os.Setenv("APP_CFG", "")
 	assert.NoError(t, err)
 
+	/// Проверяем загрузку конфига по умолчанию (config/configs/dev.yml)
 	err = InFakeDevDir(t, config.InitConfig)
 	assert.NoError(t, err)
-}
-
-func TestConfig_BadEnv(t *testing.T) {
-	err := os.Setenv("PORT_ORCHESTRATOR", "badvalue")
-	assert.NoError(t, err)
-
-	err = InFakeDevDir(t, config.InitConfig)
-	assert.Error(t, err)
 }

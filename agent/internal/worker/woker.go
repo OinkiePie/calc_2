@@ -79,13 +79,13 @@ func (w *Worker) Start(ctx context.Context) {
 		default:
 			task, err := w.apiClient.GetTask()
 			if err != nil {
-				logger.Log.Errorf("Рабочий %d: Ошибка при получении задачи: %v", w.workerID, err)
+				// logger.Log.Errorf("Рабочий %d: Ошибка при получении задачи: %v", w.workerID, err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
 
 			if task == nil {
-				logger.Log.Debugf("Рабочий %d: Нет доступных задач, ожидаю...", w.workerID)
+				// logger.Log.Debugf("Рабочий %d: Нет доступных задач, ожидаю...", w.workerID)
 				time.Sleep(2 * time.Second)
 				continue
 			}

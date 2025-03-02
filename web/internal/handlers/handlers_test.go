@@ -2,6 +2,8 @@ package handlers_test
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,9 +11,17 @@ import (
 	"testing"
 
 	"github.com/OinkiePie/calc_2/config"
+	"github.com/OinkiePie/calc_2/pkg/logger"
 	"github.com/OinkiePie/calc_2/web/internal/handlers"
 	"github.com/stretchr/testify/assert"
 )
+
+func init() {
+	// Отключаем выводы и инициализируем конфиг
+	log.SetOutput(io.Discard)
+	config.InitConfig()
+	logger.InitLogger(logger.Options{Level: 6})
+}
 
 func TestIndexHandler(t *testing.T) {
 	// Создаем временную директорию и файл index.html
@@ -20,7 +30,7 @@ func TestIndexHandler(t *testing.T) {
 	err := os.WriteFile(indexFilePath, []byte("<html><body>Hello, ivan zolo!</body></html>"), 0644)
 	assert.NoError(t, err)
 
-	h := handlers.NewWebHandlers(tempDir, 8080)
+	h := handlers.NewWebHandlers(tempDir, "localhost:8080")
 
 	// Тест для корневого пути
 	t.Run("RootPath", func(t *testing.T) {
@@ -31,7 +41,7 @@ func TestIndexHandler(t *testing.T) {
 		h.IndexHandler(rr, req)
 
 		assert.Equal(t, http.StatusOK, rr.Code)
-		assert.Equal(t, "<html><body>te kto znaut</body></html>", rr.Body.String())
+		assert.Equal(t, "<html><body>Hello, ivan zolo!</body></html>", rr.Body.String())
 	})
 
 	// Тест для не корневого пути (редирект)
@@ -54,7 +64,7 @@ func TestScriptHandler(t *testing.T) {
 	err := os.WriteFile(scriptFilePath, []byte("console.log('mojet v sud podat!');"), 0644)
 	assert.NoError(t, err)
 
-	h := handlers.NewWebHandlers(tempDir, 8080)
+	h := handlers.NewWebHandlers(tempDir, "localhost:8080")
 
 	req, err := http.NewRequest("GET", "/script.js", nil)
 	assert.NoError(t, err)
@@ -63,7 +73,7 @@ func TestScriptHandler(t *testing.T) {
 	h.ScriptHandler(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "console.log('Hello, World!');", rr.Body.String())
+	assert.Equal(t, "console.log('mojet v sud podat!');", rr.Body.String())
 }
 
 func TestStyleHandler(t *testing.T) {
@@ -73,7 +83,7 @@ func TestStyleHandler(t *testing.T) {
 	err := os.WriteFile(styleFilePath, []byte("body { background-color: #424242; }"), 0644)
 	assert.NoError(t, err)
 
-	h := handlers.NewWebHandlers(tempDir, 8080)
+	h := handlers.NewWebHandlers(tempDir, "localhost:8080")
 
 	req, err := http.NewRequest("GET", "/style.css", nil)
 	assert.NoError(t, err)
@@ -82,7 +92,7 @@ func TestStyleHandler(t *testing.T) {
 	h.StyleHandler(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "body { background-color: red; }", rr.Body.String())
+	assert.Equal(t, "body { background-color: #424242; }", rr.Body.String())
 }
 
 func TestFaviconHandler(t *testing.T) {
@@ -92,7 +102,7 @@ func TestFaviconHandler(t *testing.T) {
 	err := os.WriteFile(faviconFilePath, []byte("favicon content"), 0644)
 	assert.NoError(t, err)
 
-	h := handlers.NewWebHandlers(tempDir, 8080)
+	h := handlers.NewWebHandlers(tempDir, "localhost:8080")
 
 	req, err := http.NewRequest("GET", "/favicon.ico", nil)
 	assert.NoError(t, err)
@@ -105,13 +115,17 @@ func TestFaviconHandler(t *testing.T) {
 }
 
 func TestApiHandler(t *testing.T) {
-	h := handlers.NewWebHandlers("", 8080)
+	h := handlers.NewWebHandlers("", "coolhost:8080")
 
-	err := os.Setenv("PORT_ORCHESTRATOR", "8080")
+	err := os.Setenv("ADDR_ORCHESTRATOR", "coolhost:8080")
 	assert.NoError(t, err)
 
-	config.InitConfig() // будет ошибка т.к. нет файла конфигурации
-	// В реальной работе её перехватит инициализатор
+	// Отключаем конфиг
+	err = os.Setenv("APP_CFG", "CFG_FALSE")
+	assert.NoError(t, err)
+
+	err = config.InitConfig()
+	assert.NoError(t, err)
 
 	req, err := http.NewRequest("GET", "/api", nil)
 	assert.NoError(t, err)
@@ -120,5 +134,5 @@ func TestApiHandler(t *testing.T) {
 	h.ApiHandler(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, fmt.Sprintf("%d\n", config.Cfg.Server.Orchestrator.Port), rr.Body.String())
+	assert.Equal(t, fmt.Sprintf("%s\n", config.Cfg.Server.Orchestrator.Addr), rr.Body.String())
 }
