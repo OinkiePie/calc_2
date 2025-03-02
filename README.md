@@ -207,9 +207,9 @@ logger:
     docker run -p 8081:8081 web:latest
     ```
 
-    Для запуска с другим адресом используйте (пример для Web сервиса):
+    Для запуска с другим адресом (по умолчанию `localhost:8081`) используйте (пример для Web сервиса):
     ```bash
-    docker run -e ADDR_WEB="0.0.0.0:8085" -p 8085:8085 web:latest
+    docker run -e ADDR_WEB="0.0.0.0:8085" -e PORT_WEB=8085 -p 8085:8085 web:latest
     ```
 
 ### Запуск с помощью Docker Compose (рекомендуется):
