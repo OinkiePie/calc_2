@@ -1,15 +1,26 @@
 package router_test
 
 import (
+	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/OinkiePie/calc_2/config"
+	"github.com/OinkiePie/calc_2/pkg/logger"
 	"github.com/OinkiePie/calc_2/web/internal/router"
 	"github.com/stretchr/testify/assert"
 )
+
+func init() {
+	// Отключаем выводы и инициализируем конфиг
+	log.SetOutput(io.Discard)
+	config.InitConfig()
+	logger.InitLogger(logger.Options{Level: 6})
+}
 
 func createTempFiles(t *testing.T) string {
 	// Создаем временную директорию
@@ -48,7 +59,7 @@ func createTempFiles(t *testing.T) string {
 func TestWebRouter(t *testing.T) {
 	// Создаем роутер
 
-	router := router.NewWebRouter(createTempFiles(t), "localhost:8080")
+	router := router.NewWebRouter(createTempFiles(t))
 	// Тест для /favicon.ico
 	t.Run("FaviconHandler", func(t *testing.T) {
 

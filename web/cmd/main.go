@@ -33,7 +33,6 @@ type Web struct {
 //	*Web - Указатель на новый экземпляр структуры Web.
 func NewWeb(errChan chan error) *Web {
 	addr := config.Cfg.Server.Web.Addr
-	portOrchestrator := config.Cfg.Server.Orchestrator.Addr
 	staticDir := config.Cfg.Server.Web.StaticDir
 
 	if _, err := os.Stat(staticDir); os.IsNotExist(err) {
@@ -41,7 +40,7 @@ func NewWeb(errChan chan error) *Web {
 		return nil
 	}
 
-	router := router.NewWebRouter(staticDir, portOrchestrator)
+	router := router.NewWebRouter(staticDir)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   config.Cfg.Middleware.AllowOrigin,

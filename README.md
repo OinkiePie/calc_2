@@ -69,15 +69,15 @@ calc_2/
 
 (только для текущей сессии командной строки)
 ```powershell
-$env:APP_ENV="<name>"
+$env:APP_CFG="<name>"
 ```
 ```cmd
-set APP_ENV="<name>"
+set APP_CFG="<name>"
 ```
 
 Или указать при запуске (Docker):
 ```bash
-docker run -e APP_ENV=<путь> -p 8081:8081 web:latest
+docker run -e APP_CFG=<путь> -p 8081:8081 web:latest
 ```
 
 ### Процесс применения конфигурации приложением
@@ -104,11 +104,13 @@ docker run -e APP_ENV=<путь> -p 8081:8081 web:latest
 ```yml
 server:
   orchestrator:
-    port: "0.0.0.0:8080"
+    addr: '0.0.0.0:8080'
+    port: 8080
   agent:
     COMPUTING_POWER: 4
   web:
-    port: "0.0.0.0:8081"
+    addr: '0.0.0.0:8081'
+    port: 8081
     static: 'web/static'
 
 math:

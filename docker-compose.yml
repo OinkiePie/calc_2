@@ -6,7 +6,7 @@ services:
     depends_on:
       - orchestrator
     networks:
-      - back
+      - net
   orchestrator:
     build:
       context: .
@@ -14,8 +14,7 @@ services:
     ports:
       - '8080:8080'
     networks:
-      - back
-      - front
+      - net
   web:
     build:
       context: .
@@ -25,10 +24,8 @@ services:
     depends_on:
       - orchestrator
     networks:
-      - front
+      - net
 
 networks:
-  back:
-    driver: bridge
-  front:
+  net:
     driver: bridge

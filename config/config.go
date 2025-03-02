@@ -29,6 +29,7 @@ type ServicesConfig struct {
 // OrchestratorServiceConfig структура параметров оркестратора
 type OrchestratorServiceConfig struct {
 	Addr string `yaml:"addr"`
+	Port int    `yaml:"port"`
 }
 
 // AgentServiceConfig структура параметров агента
@@ -39,6 +40,7 @@ type AgentServiceConfig struct {
 // WebServiceConfig структура параметров веб сервиса
 type WebServiceConfig struct {
 	Addr      string `yaml:"addr"`
+	Port      int    `yaml:"port"`
 	StaticDir string `yaml:"static"`
 }
 
@@ -147,6 +149,26 @@ func loadEnv() error {
 	addrWeb := os.Getenv("ADDR_WEB")
 	if addrWeb != "" {
 		Cfg.Server.Web.Addr = addrWeb
+	}
+
+	// PORT_ORCHESTRATOR
+	portOrchestratorStr := os.Getenv("PORT_ORCHESTRATOR")
+	if portOrchestratorStr != "" {
+		portOrchestrator, err := strconv.Atoi(portOrchestratorStr)
+		if err != nil {
+			return fmt.Errorf("ошибка преобразования PORT_ORCHESTRATOR в int: %w", err)
+		}
+		Cfg.Server.Orchestrator.Port = portOrchestrator
+	}
+
+	// PORT_WEB
+	portWebStr := os.Getenv("PORT_WEB")
+	if portWebStr != "" {
+		portWeb, err := strconv.Atoi(portWebStr)
+		if err != nil {
+			return fmt.Errorf("ошибка преобразования PORT_WEB в int: %w", err)
+		}
+		Cfg.Server.Web.Port = portWeb
 	}
 
 	// COMPUTING_POWER

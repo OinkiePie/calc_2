@@ -86,7 +86,7 @@ func NewOrchestratorHandlers(tm *task_manager.TaskManager) *Handlers {
 //	}
 func (h *Handlers) AddExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "метод не поддерживается")
+		h.writeErrorResponse(w, http.StatusMethodNotAllowed, "метод не поддерживается") // 405
 		return
 	}
 

@@ -30,7 +30,7 @@ func TestIndexHandler(t *testing.T) {
 	err := os.WriteFile(indexFilePath, []byte("<html><body>Hello, ivan zolo!</body></html>"), 0644)
 	assert.NoError(t, err)
 
-	h := handlers.NewWebHandlers(tempDir, "localhost:8080")
+	h := handlers.NewWebHandlers(tempDir)
 
 	// Тест для корневого пути
 	t.Run("RootPath", func(t *testing.T) {
@@ -64,7 +64,7 @@ func TestScriptHandler(t *testing.T) {
 	err := os.WriteFile(scriptFilePath, []byte("console.log('mojet v sud podat!');"), 0644)
 	assert.NoError(t, err)
 
-	h := handlers.NewWebHandlers(tempDir, "localhost:8080")
+	h := handlers.NewWebHandlers(tempDir)
 
 	req, err := http.NewRequest("GET", "/script.js", nil)
 	assert.NoError(t, err)
@@ -83,7 +83,7 @@ func TestStyleHandler(t *testing.T) {
 	err := os.WriteFile(styleFilePath, []byte("body { background-color: #424242; }"), 0644)
 	assert.NoError(t, err)
 
-	h := handlers.NewWebHandlers(tempDir, "localhost:8080")
+	h := handlers.NewWebHandlers(tempDir)
 
 	req, err := http.NewRequest("GET", "/style.css", nil)
 	assert.NoError(t, err)
@@ -102,7 +102,7 @@ func TestFaviconHandler(t *testing.T) {
 	err := os.WriteFile(faviconFilePath, []byte("favicon content"), 0644)
 	assert.NoError(t, err)
 
-	h := handlers.NewWebHandlers(tempDir, "localhost:8080")
+	h := handlers.NewWebHandlers(tempDir)
 
 	req, err := http.NewRequest("GET", "/favicon.ico", nil)
 	assert.NoError(t, err)
@@ -115,9 +115,9 @@ func TestFaviconHandler(t *testing.T) {
 }
 
 func TestApiHandler(t *testing.T) {
-	h := handlers.NewWebHandlers("", "coolhost:8080")
+	h := handlers.NewWebHandlers("")
 
-	err := os.Setenv("ADDR_ORCHESTRATOR", "coolhost:8080")
+	err := os.Setenv("PORT_ORCHESTRATOR", "6666")
 	assert.NoError(t, err)
 
 	// Отключаем конфиг
@@ -134,5 +134,5 @@ func TestApiHandler(t *testing.T) {
 	h.ApiHandler(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, fmt.Sprintf("%s\n", config.Cfg.Server.Orchestrator.Addr), rr.Body.String())
+	assert.Equal(t, fmt.Sprintf("%d\n", config.Cfg.Server.Orchestrator.Port), rr.Body.String())
 }

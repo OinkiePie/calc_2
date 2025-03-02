@@ -18,6 +18,7 @@ COPY config ./config
 RUN go build -o /app/orchestrator-app ./orchestrator/cmd/main.go
 
 FROM alpine:latest
+RUN apk update && apk add bash
 
 WORKDIR /app
 

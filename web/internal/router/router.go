@@ -14,8 +14,8 @@ import (
 // Returns:
 //
 //	*mux.Router - Указатель на созданный и настроенный роутер gorilla/mux.
-func NewWebRouter(static string, addr string) *mux.Router {
-	handler := handlers.NewWebHandlers(static, addr)
+func NewWebRouter(static string) *mux.Router {
+	handler := handlers.NewWebHandlers(static)
 	router := mux.NewRouter()
 
 	router.HandleFunc("/favicon.ico", handler.FaviconHandler)
