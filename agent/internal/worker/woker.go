@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/OinkiePie/calc_2/agent/internal/client"
+	"github.com/OinkiePie/calc_2/config"
 	"github.com/OinkiePie/calc_2/pkg/logger"
 	"github.com/OinkiePie/calc_2/pkg/models"
 	"github.com/OinkiePie/calc_2/pkg/operators"
@@ -70,6 +71,8 @@ func NewWorker(workerID int, apiClient *client.APIClient, wg *sync.WaitGroup, er
 func (w *Worker) Start(ctx context.Context) {
 	w.wg.Add(1)
 	defer w.wg.Done()
+	prevErr := errors.New("")
+	waiting := true
 
 	for {
 		select {
@@ -79,19 +82,29 @@ func (w *Worker) Start(ctx context.Context) {
 		default:
 			task, err := w.apiClient.GetTask()
 			if err != nil {
-				logger.Log.Errorf("Рабочий %d: Ошибка при получении задачи: %v", w.workerID, err)
-				time.Sleep(5 * time.Second)
+				// Дабы избежать бесконечно спама в консоль сверяем с предыдущей ошибкой
+				if prevErr.Error() != err.Error() {
+					logger.Log.Errorf("Рабочий %d: Ошибка при получении задачи: %v. Повторные запросы каждые %d мс.",
+						w.workerID, err, config.Cfg.Server.Agent.AGENT_REPEAT_ERR)
+				}
+				prevErr = err
+				time.Sleep(time.Duration(config.Cfg.Server.Agent.AGENT_REPEAT_ERR) * time.Millisecond)
 				continue
 			}
 
 			if task == nil {
-				logger.Log.Debugf("Рабочий %d: Нет доступных задач, ожидаю...", w.workerID)
-				time.Sleep(2 * time.Second)
+				// Дабы избежать бесконечно спама в консоль проверяем был ли уже лог о ожидании
+				if waiting {
+					logger.Log.Debugf("Рабочий %d: Нет доступных задач. Повторные запросы каждые %d мс.",
+						w.workerID, config.Cfg.Server.Agent.AGENT_REPEAT)
+					waiting = false
+				}
+				time.Sleep(time.Duration(config.Cfg.Server.Agent.AGENT_REPEAT) * time.Millisecond)
 				continue
 			}
 
 			logger.Log.Debugf("Рабочий %d: Получена задача %s", w.workerID, task.ID)
-
+			waiting = true
 			//  Создаем контекст с таймаутом
 			taskCtx, cancel := context.WithTimeout(context.Background(), time.Duration(task.Operation_time)*time.Millisecond)
 			defer cancel()

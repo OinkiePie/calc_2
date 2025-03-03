@@ -28,19 +28,21 @@ type ServicesConfig struct {
 
 // OrchestratorServiceConfig структура параметров оркестратора
 type OrchestratorServiceConfig struct {
-	Addr string `yaml:"addr"`
-	Port int    `yaml:"port"`
+	ADDR_ORCHESTRATOR string `yaml:"ADDR_ORCHESTRATOR"`
+	PORT_ORCHESTRATOR int    `yaml:"PORT_ORCHESTRATOR"`
 }
 
 // AgentServiceConfig структура параметров агента
 type AgentServiceConfig struct {
-	COMPUTING_POWER int `yaml:"COMPUTING_POWER"`
+	COMPUTING_POWER  int `yaml:"COMPUTING_POWER"`
+	AGENT_REPEAT     int `yaml:"AGENT_REPEAT"`
+	AGENT_REPEAT_ERR int `yaml:"AGENT_REPEAT_ERR"`
 }
 
 // WebServiceConfig структура параметров веб сервиса
 type WebServiceConfig struct {
-	Addr      string `yaml:"addr"`
-	Port      int    `yaml:"port"`
+	ADDR_WEB  string `yaml:"ADDR_WEB"`
+	PORT_WEB  int    `yaml:"PORT_WEB"`
 	StaticDir string `yaml:"static"`
 }
 
@@ -76,14 +78,16 @@ func defaultConfig() *Config {
 	return &Config{
 		Server: ServicesConfig{
 			Orchestrator: OrchestratorServiceConfig{
-				Addr: "localhost:8080",
+				ADDR_ORCHESTRATOR: "127.0.0.1",
+				PORT_ORCHESTRATOR: 8080,
 			},
 			Agent: AgentServiceConfig{
 				COMPUTING_POWER: 4,
 			},
 			Web: WebServiceConfig{
-				Addr:      "localhost:8081",
+				ADDR_WEB:  "127.0.0.1",
 				StaticDir: "web/static",
+				PORT_WEB:  8080,
 			},
 		},
 		Math: MathConfig{
@@ -122,18 +126,18 @@ func loadName() {
 		log.Println("Файл .env не найден")
 	}
 	// Определение типа приложения - prod или dev
-	env := os.Getenv("APP_CFG")
+	path := os.Getenv("APP_CFG")
 
-	if env == "" {
+	if path == "" {
 		log.Println("Переменная среды APP_CFG отстутствует или пуста, используется конфигурация по умолчанию")
-		env = "config/configs/dev.yml" // По умолчанию - разработка
-	} else if env == "CFG_FALSE" {
+		path = "config/configs/dev.yml" // По умолчанию - разработка
+	} else if path == "CFG_FALSE" {
 		log.Println(`Переменная среды APP_CFG равна "CFG_FALSE". Файл конфигурации отключен.`)
 		Filename = ""
 		return
 	}
 
-	Filename = env
+	Filename = path
 
 }
 
@@ -142,13 +146,13 @@ func loadEnv() error {
 	addrOrchestrator := os.Getenv("ADDR_ORCHESTRATOR")
 	if addrOrchestrator != "" {
 
-		Cfg.Server.Orchestrator.Addr = addrOrchestrator
+		Cfg.Server.Orchestrator.ADDR_ORCHESTRATOR = addrOrchestrator
 	}
 
 	// ADDR_WEB
 	addrWeb := os.Getenv("ADDR_WEB")
 	if addrWeb != "" {
-		Cfg.Server.Web.Addr = addrWeb
+		Cfg.Server.Web.ADDR_WEB = addrWeb
 	}
 
 	// PORT_ORCHESTRATOR
@@ -158,7 +162,7 @@ func loadEnv() error {
 		if err != nil {
 			return fmt.Errorf("ошибка преобразования PORT_ORCHESTRATOR в int: %w", err)
 		}
-		Cfg.Server.Orchestrator.Port = portOrchestrator
+		Cfg.Server.Orchestrator.PORT_ORCHESTRATOR = portOrchestrator
 	}
 
 	// PORT_WEB
@@ -168,7 +172,7 @@ func loadEnv() error {
 		if err != nil {
 			return fmt.Errorf("ошибка преобразования PORT_WEB в int: %w", err)
 		}
-		Cfg.Server.Web.Port = portWeb
+		Cfg.Server.Web.PORT_WEB = portWeb
 	}
 
 	// COMPUTING_POWER
@@ -179,6 +183,26 @@ func loadEnv() error {
 			return fmt.Errorf("ошибка преобразования TIME_POWER_MS в int: %w", err)
 		}
 		Cfg.Math.TIME_POWER_MS = computingPower
+	}
+
+	// AGENT_REPEAT_ERR
+	agentRepeatErrStr := os.Getenv("AGENT_REPEAT_ERR")
+	if agentRepeatErrStr != "" {
+		agentRepeatErr, err := strconv.Atoi(agentRepeatErrStr)
+		if err != nil {
+			return fmt.Errorf("ошибка преобразования AGENT_REPEAT_ERR в int: %w", err)
+		}
+		Cfg.Server.Agent.AGENT_REPEAT_ERR = agentRepeatErr
+	}
+
+	// AGENT_REPEAT
+	agentRepeatStr := os.Getenv("AGENT_REPEAT")
+	if agentRepeatStr != "" {
+		agentRepeat, err := strconv.Atoi(agentRepeatStr)
+		if err != nil {
+			return fmt.Errorf("ошибка преобразования AGENT_REPEAT в int: %w", err)
+		}
+		Cfg.Server.Agent.AGENT_REPEAT = agentRepeat
 	}
 
 	// TIME_ADDITION_MS

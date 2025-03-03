@@ -1,21 +1,23 @@
 server:
   orchestrator:
-    addr: '127.0.0.1:8080'
-    port: 8080
+    ADDR_ORCHESTRATOR: '127.0.0.1'
+    PORT_ORCHESTRATOR: 8080
   agent:
     COMPUTING_POWER: 1
+    AGENT_REPEAT: 5000
+    AGENT_REPEAT_ERR: 2000
   web:
-    addr: '127.0.0.1:8081'
-    port: 8081
+    ADDR_WEB: '127.0.0.1'
+    PORT_WEB: 8081
     static: 'web/static'
 
 math:
-  # TIME_ADDITION_MS: 0
-  # TIME_SUBTRACTION_MS: 0
-  # TIME_MULTIPLICATION_MS: 0
-  # TIME_DIVISION_MS: 0
-  # TIME_UNARY_MINUS_MS: 0
-  # TIME_POWER_MS: 0
+  TIME_ADDITION_MS: 0
+  TIME_SUBTRACTION_MS: 0
+  TIME_MULTIPLICATION_MS: 0
+  TIME_DIVISION_MS: 0
+  TIME_UNARY_MINUS_MS: 0
+  TIME_POWER_MS: 0
 
 middleware:
   api_key_prefix: ''
@@ -24,7 +26,7 @@ middleware:
     - '*'
 
 logger:
-  level: 0 # 0 - дебаг. Включая его будьте готовы к обильному спаму в терминал.
+  level: 1 # 0 - дебаг. Включая его будьте готовы к обильному спаму в терминал.
   time_format: '2006-01-02 15:04:05'
   call_depth: 2
   disable_call: false

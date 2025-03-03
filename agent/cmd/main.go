@@ -41,7 +41,10 @@ func NewAgent(errChan chan error) *Agent {
 	}
 
 	apiClient := client.NewAPIClient(
-		fmt.Sprintf("http://127.0.0.1:%d/internal/task", config.Cfg.Server.Orchestrator.Port),
+		fmt.Sprintf("http://%s:%d/internal/task",
+			config.Cfg.Server.Orchestrator.ADDR_ORCHESTRATOR,
+			config.Cfg.Server.Orchestrator.PORT_ORCHESTRATOR),
+
 		config.Cfg.Middleware.ApiKeyPrefix+config.Cfg.Middleware.Authorization,
 		httpClient,
 	)

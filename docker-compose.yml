@@ -6,7 +6,10 @@ services:
     depends_on:
       - orchestrator
     networks:
-      - net
+      - back
+    environment:
+      - ADDR_ORCHESTRATOR=orchestrator
+      - PORT_ORCHESTRATOR=8080
   orchestrator:
     build:
       context: .
@@ -14,7 +17,11 @@ services:
     ports:
       - '8080:8080'
     networks:
-      - net
+      - back
+      - front
+    environment:
+      - ADDR_ORCHESTRATOR=0.0.0.0
+      - PORT_ORCHESTRATOR=8080
   web:
     build:
       context: .
@@ -24,8 +31,14 @@ services:
     depends_on:
       - orchestrator
     networks:
-      - net
-
+      - front
+    environment:
+      - ADDR_ORCHESTRATOR=127.0.0.1
+      - PORT_ORCHESTRATOR=8080
+      - ADDR_WEB=0.0.0.0
+      - PORT__WEB=8081
 networks:
-  net:
+  front:
+    driver: bridge
+  back:
     driver: bridge

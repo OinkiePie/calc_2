@@ -11,7 +11,8 @@ import (
 // Handlers представляет структуру, содержащую методы-обработчики для веб-запросов.
 // Хранит путь к директории со статическими файлами.
 type Handlers struct {
-	staticDir string
+	staticDir    string
+	orchestrator string
 }
 
 // NewWebHandlers создает новый экземпляр структуры Handlers и инициализирует поле StaticDir.
@@ -24,7 +25,8 @@ type Handlers struct {
 //
 //	*Handlers - Указатель на созданный экземпляр структуры Handlers.
 func NewWebHandlers(static string) *Handlers {
-	return &Handlers{staticDir: static}
+	orchestrator := fmt.Sprintf("%s:%d", config.Cfg.Server.Orchestrator.ADDR_ORCHESTRATOR, config.Cfg.Server.Orchestrator.PORT_ORCHESTRATOR)
+	return &Handlers{staticDir: static, orchestrator: orchestrator}
 }
 
 // IndexHandler обрабатывает запросы к корневому пути и всем осталльным
@@ -84,5 +86,5 @@ func (h *Handlers) FaviconHandler(w http.ResponseWriter, r *http.Request) {
 //	r: *http.Request - указатель на структуру, представляющую HTTP-запрос.
 func (h *Handlers) ApiHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
-	fmt.Fprintln(w, config.Cfg.Server.Orchestrator.Port)
+	fmt.Fprintln(w, h.orchestrator)
 }

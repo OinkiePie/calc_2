@@ -111,7 +111,7 @@ func TestConfig_Yml(t *testing.T) {
 	yamlContent := `
 server:
   orchestrator:
-    addr: "newadres:1338"
+    ADDR_ORCHESTRATOR: "newadres"
 math:
   TIME_ADDITION_MS: 50
   TIME_SUBTRACTION_MS: 100
@@ -125,7 +125,7 @@ logger:
 	err = config.InitConfig()
 	assert.NoError(t, err)
 
-	assert.Equal(t, "newadres:1338", config.Cfg.Server.Orchestrator.Addr)
+	assert.Equal(t, "newadres", config.Cfg.Server.Orchestrator.ADDR_ORCHESTRATOR)
 	assert.Equal(t, 50, config.Cfg.Math.TIME_ADDITION_MS)
 	assert.Equal(t, 100, config.Cfg.Math.TIME_SUBTRACTION_MS)
 	assert.Equal(t, 1, config.Cfg.Logger.Level)
@@ -170,7 +170,7 @@ func TestConfig_BadYml(t *testing.T) {
 func TestConfig_Env(t *testing.T) {
 	err := os.Setenv("APP_CFG", "")
 	assert.NoError(t, err)
-	err = os.Setenv("ADDR_ORCHESTRATOR", "newadres:1337")
+	err = os.Setenv("ADDR_ORCHESTRATOR", "newadres")
 	assert.NoError(t, err)
 	err = os.Setenv("TIME_ADDITION_MS", "100")
 	assert.NoError(t, err)
@@ -182,7 +182,7 @@ func TestConfig_Env(t *testing.T) {
 	err = config.InitConfig()
 	assert.NoError(t, err)
 
-	assert.Equal(t, "newadres:1337", config.Cfg.Server.Orchestrator.Addr)
+	assert.Equal(t, "newadres", config.Cfg.Server.Orchestrator.ADDR_ORCHESTRATOR)
 	assert.Equal(t, 100, config.Cfg.Math.TIME_ADDITION_MS)
 }
 

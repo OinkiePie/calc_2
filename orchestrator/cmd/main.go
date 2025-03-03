@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -30,7 +31,7 @@ type Orchestrator struct {
 //
 //	*Orchestrator - Указатель на новый экземпляр структуры Orchestrator.
 func NewOrchestrator(errChan chan error) *Orchestrator {
-	addr := config.Cfg.Server.Orchestrator.Addr
+	addr := fmt.Sprintf("%s:%d", config.Cfg.Server.Orchestrator.ADDR_ORCHESTRATOR, config.Cfg.Server.Orchestrator.PORT_ORCHESTRATOR)
 
 	router := router.NewOrchestratorRouter()
 

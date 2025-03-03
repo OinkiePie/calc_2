@@ -115,9 +115,9 @@ func TestFaviconHandler(t *testing.T) {
 }
 
 func TestApiHandler(t *testing.T) {
-	h := handlers.NewWebHandlers("")
-
-	err := os.Setenv("PORT_ORCHESTRATOR", "6666")
+	err := os.Setenv("ADDR_ORCHESTRATOR", "0.1.0.1")
+	assert.NoError(t, err)
+	err = os.Setenv("PORT_ORCHESTRATOR", "6666")
 	assert.NoError(t, err)
 
 	// Отключаем конфиг
@@ -127,6 +127,8 @@ func TestApiHandler(t *testing.T) {
 	err = config.InitConfig()
 	assert.NoError(t, err)
 
+	h := handlers.NewWebHandlers("")
+
 	req, err := http.NewRequest("GET", "/api", nil)
 	assert.NoError(t, err)
 
@@ -134,5 +136,5 @@ func TestApiHandler(t *testing.T) {
 	h.ApiHandler(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, fmt.Sprintf("%d\n", config.Cfg.Server.Orchestrator.Port), rr.Body.String())
+	assert.Equal(t, fmt.Sprintf("%s:%d\n", config.Cfg.Server.Orchestrator.ADDR_ORCHESTRATOR, config.Cfg.Server.Orchestrator.PORT_ORCHESTRATOR), rr.Body.String())
 }

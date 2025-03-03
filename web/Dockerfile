@@ -18,7 +18,9 @@ COPY config ./config
 RUN go build -o /app/web-app ./web/cmd/main.go
 
 FROM alpine:latest
-RUN apk update && apk add bash
+
+# ТА САМАЯ СТРОКА ДЛЯ УСТАНОВКИ BASH ↓↓↓
+# RUN apk update && apk add bash
 
 WORKDIR /app
 

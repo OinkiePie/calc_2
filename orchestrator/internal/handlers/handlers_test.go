@@ -71,7 +71,7 @@ func TestAddExpressionHandler(t *testing.T) {
 		rr := httptest.NewRecorder()
 		h.AddExpressionHandler(rr, req)
 
-		assert.Equal(t, http.StatusUnprocessableEntity, rr.Code)
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
 	})
 
 	t.Run("When adding", func(t *testing.T) {

@@ -1,12 +1,14 @@
 server:
   orchestrator:
-    addr: '127.0.0.1:8080'
-    port: 8080
+    ADDR_ORCHESTRATOR: '127.0.0.1'
+    PORT_ORCHESTRATOR: 8080
   agent:
     COMPUTING_POWER: 4
+    AGENT_REPEAT: 5000
+    AGENT_REPEAT_ERR: 2000
   web:
-    addr: '127.0.0.1:8081'
-    port: 8081
+    ADDR_WEB: '127.0.0.1'
+    PORT_WEB: 8081
     static: 'web/static'
 
 math:
@@ -18,11 +20,10 @@ math:
   TIME_POWER_MS: 600
 
 middleware:
-  api_key_prefix: 'Bearer'
+  api_key_prefix: 'Bearer '
   authorization: 'SuperHardAuthorizationPassword777'
   cors_allow_origin:
-    - 'http://localhost:8081'
-    - 'http://localhost:8080'
+    - '*'
 
 logger:
   level: 1

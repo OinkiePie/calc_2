@@ -32,7 +32,7 @@ type Web struct {
 //
 //	*Web - Указатель на новый экземпляр структуры Web.
 func NewWeb(errChan chan error) *Web {
-	addr := config.Cfg.Server.Web.Addr
+	addr := fmt.Sprintf("%s:%d", config.Cfg.Server.Web.ADDR_WEB, config.Cfg.Server.Web.PORT_WEB)
 	staticDir := config.Cfg.Server.Web.StaticDir
 
 	if _, err := os.Stat(staticDir); os.IsNotExist(err) {
