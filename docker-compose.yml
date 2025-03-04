@@ -36,7 +36,7 @@ services:
       - ADDR_ORCHESTRATOR=127.0.0.1
       - PORT_ORCHESTRATOR=8080
       - ADDR_WEB=0.0.0.0
-      - PORT__WEB=8081
+      - PORT_WEB=8081
 networks:
   front:
     driver: bridge
