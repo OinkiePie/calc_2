@@ -82,12 +82,14 @@ func defaultConfig() *Config {
 				PORT_ORCHESTRATOR: 8080,
 			},
 			Agent: AgentServiceConfig{
-				COMPUTING_POWER: 4,
+				COMPUTING_POWER:  4,
+				AGENT_REPEAT:     5000,
+				AGENT_REPEAT_ERR: 2000,
 			},
 			Web: WebServiceConfig{
 				ADDR_WEB:  "127.0.0.1",
 				StaticDir: "web/static",
-				PORT_WEB:  8080,
+				PORT_WEB:  8081,
 			},
 		},
 		Math: MathConfig{
